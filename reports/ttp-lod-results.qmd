@@ -1,0 +1,56 @@
+---
+title: "TTP Limit of Detection"
+author: "Suzanne Dufault"
+format: 
+  revealjs:
+    self-contained: true
+    self-contained-math: true
+editor: visual
+execute:
+  echo: false
+  message: false
+  warning: false
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+library(tidyverse)
+library(here)
+library(kableExtra)
+library(knitr)
+```
+
+# General
+
+## Overview
+
+In practice, very few samples return MGIT time-to-positivity values between 30 and 42 days. While this range may be important for individual diagnostic purposes, the TTP values captured in this range may not contribute meaningfully to understanding the relative TTP trajectories at the regimen-level. If they do not contribute meaningfully, they may be a source of noise, obscuring the underlying signal. If the LOD useful for modelling can be shortened, trials using TTP as an interim analysis intermediate outcome will be able to return results more quickly, since they will not have to wait as long for sample observation.
+
+## Objective
+
+Our objective is to use existing TTP data to better define the trajectory and variance of TTP over time, while examining the impact of alternate limits of detection on power.
+
+## Datasets
+
+-   REMoxTB
+
+-   SUDOCU
+
+-   S31 (?)
+
+## Methods
+
+-   **Models:** Bayesian (linear fit), Burger bi-linear model, etc.
+
+-   **LOD:** 20, 25, 30, 42
+
+# Descriptive Profile
+
+## TTP v. Time (REMoxTB)
+
+## Weekly TTP Distribution (REMoxTB)
+
+# Modeling Work
+
+# 
