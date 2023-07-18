@@ -36,3 +36,5 @@ rsconnect/
 tb-lod.Rproj
 manuscripts
 .DS_Store
+data
+graphs
