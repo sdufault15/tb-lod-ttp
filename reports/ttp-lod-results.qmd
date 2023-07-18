@@ -19,27 +19,96 @@ library(tidyverse)
 library(here)
 library(kableExtra)
 library(knitr)
+library(patchwork)
+library(latex2exp)
+library(ggalluvial)
+
+source(here("lib", "ucsf-color-palette.R"))
+load(here("data", "cleaned-data", "2023-07-11_remoxtb-clean.RData"))
+load(here("data", "cleaned-data", "2023-07-11_mams-clean.RData"))
+theme_set(ggpubr::theme_pubr())
 ```
 
 # General
 
-## Overview
+## Overview (1/2)
 
-In practice, very few samples return MGIT time-to-positivity values between 30 and 42 days. While this range may be important for individual diagnostic purposes, the TTP values captured in this range may not contribute meaningfully to understanding the relative TTP trajectories at the regimen-level. If they do not contribute meaningfully, they may be a source of noise, obscuring the underlying signal. If the LOD useful for modelling can be shortened, trials using TTP as an interim analysis intermediate outcome will be able to return results more quickly, since they will not have to wait as long for sample observation.
+-   BACTEC MGIT machine is the standard approach globally for detecting viable bacilli in a patient's sputum.
+    -   Measures the decline of oxygen in a liquid culture tube inoculated with the sputum sample.
+    -   Introduced during a major diagnostic development push at the end of the 1980s/early 1990s.
+-   Samples observed no longer than 42 days, at which point the sample is declared \`\`negative'' for TB with no evidence for bacterial growth.
+
+::: notes
+I think the historical impact of the development of the BACTEC MGIT machine is super interesting!
+:::
+
+## Overview (2/2)
+
+In practice, **very few samples return MGIT time-to-positivity values between 30 and 42 days**. While this range may be important for individual *diagnostic* purposes, the TTP values captured in this range may not contribute meaningfully to understanding the relative TTP trajectories at the regimen-level. We investigate whether using a lower limit of detection for longitudinal time-to-positivity modeling will improve precision for detecting differences between treatments, resulting in shorter trial times and improved power for performing regimen selection.
 
 ## Objective
 
-Our objective is to use existing TTP data to better define the trajectory and variance of TTP over time, while examining the impact of alternate limits of detection on power.
+Our objective is to examine existing TTP data from various case studies to better define the trajectory and variance of regimen-level TTP over time, while examining the impact of alternate limits of detection on power.
 
 ## Datasets
 
 -   REMoxTB
 
--   SUDOCU
+-   PanACEA MAMS-TB
 
--   S31 (?)
+## REMoxTB
 
-## Methods
+We will restrict to only those with:
+
+-   `result = 0,1,2` (i.e., only those with a Negative (0), Positive (1), or Unconfirmed Positive (2) result)
+-   `bact = 1` (i.e., MGIT)
+-   `weeks <= 8` (i.e., only looking at observations within 8 weeks of randomization)
+-   `!box_mitt %in% c(10,20,30)` excluding those with late screening failures
+
+## MAMS
+
+We restrict to those with:
+
+-   `WEEK <= 8` (i.e., only looking at observations within 8 weeks of randomization)
+
+-   `!is.na(DV)` (i.e., only those with an observed time to positivity)
+
+## Methods - Models
+
+```{r}
+# FIX PARAMETERIZATION - FIT REMOXTB with this model
+complex_biphasic_trend <- function(weeks, alpha, beta1, beta2, kappa, gamma){
+  alpha + beta1 * weeks + beta2 * gamma * log((exp((weeks - kappa)/gamma) + exp(-(weeks - kappa)/gamma))/(exp(kappa/gamma) + exp(-kappa/gamma))) 
+}
+
+data.frame(t = seq(0,8,length.out = 100)) %>% 
+  mutate(y.biphasic = complex_biphasic_trend(weeks = t, 
+                                             alpha = 0.81,
+                                             beta1 = 0.1,
+                                             beta2 = -0.04,
+                                             kappa = 2,
+                                             gamma = 0.24),
+         y.linear = 0.860 + t*0.083) %>% 
+  ggplot(aes(x = t)) + 
+  geom_line(aes(y = y.biphasic)) + 
+  geom_line(aes(y = y.linear),
+            lty = 2) + 
+  scale_y_continuous("TTP in days, log10 scale",
+                     breaks = log10(c(1,5,10,15,25,30,42)),
+                     labels = c(1,5,10,15,25,30,42)) + 
+  coord_cartesian(ylim = c(log10(3),log10(42))) + 
+  labs(x = "Weeks since randomization")
+```
+
+```{r}
+#| eval: false
+ggsave(filename = here("graphs", "models", "00_models-hypothesized.tiff"),
+       device = "tiff",
+       height = 5,
+       width = 7,
+       units = "in",
+       dpi = 300)
+```
 
 -   **Models:** Bayesian (linear fit), Burger bi-linear model, etc.
 
@@ -49,8 +118,548 @@ Our objective is to use existing TTP data to better define the trajectory and va
 
 ## TTP v. Time (REMoxTB)
 
+```{r}
+#| fig-cap: "Observed TTP trajectories, where anything at or above 42 receives a value of 42."
+p1 <- df_analysis_remox %>% 
+  ggplot(aes(x = weeks, y = dtp_42, col = treat, lty = treat)) + 
+  # geom_point(alpha = 0.3,
+  #            position = position_jitter(width = 0.1,height = 0)) +
+  geom_smooth(method = lm, 
+              formula = y ~ splines::bs(x, 4)) + 
+  scale_y_log10("TTP in days, log10 scale",
+                breaks = c(5,7,10,15,20,30,42),
+                labels = c(5,7,10,15,20,30,42)) + 
+  scale_x_continuous("Days from randomization", 
+                     breaks = 0:8,
+                     labels = seq(0,56, by = 7)) +
+  coord_cartesian(y = c(5,43))  + 
+  geom_hline(yintercept = 42, 
+             lty = 2) +
+  theme(legend.position = c(0.8,0.2),
+        legend.title = element_blank()) + 
+  scale_color_manual(values = ucsf_col_pal)
+
+p2 <- df_analysis_remox %>% 
+  ggplot(aes(x = weeks, y = dtp_42, group=trial_no)) + 
+  facet_wrap(~treat, ncol = 1) + 
+  geom_line(alpha = 0.1,
+            col = "darkgray") + 
+  geom_smooth(aes(group = treat,
+                  lty = treat),
+              method = lm, 
+              formula = y ~ splines::bs(x, 4),
+              col = "black",
+              se = FALSE) + 
+  scale_y_log10("TTP in days, log10 scale",
+                breaks = c(5,7,10,15,20,30,42),
+                labels = c(5,7,10,15,20,30,42)) + 
+  scale_x_continuous("Days from randomization", 
+                     breaks = 0:8,
+                     labels = seq(0,56, by = 7)) +
+  coord_cartesian(y = c(5,43)) +
+  geom_hline(yintercept = 42, 
+             lty = 2) + 
+  theme(legend.position = "none")
+
+p1 + p2 + 
+  plot_annotation(tag_levels = "A")
+```
+
+```{r}
+#| eval: false
+ggsave(file = here("graphs", "descriptive", "01_trajectories-remox-tb.tiff"),
+       device = "tiff",
+       height = 5,
+       width = 10,
+       units = "in",
+       dpi = 300)
+```
+
+## TTP v. Time (REMoxTB) Takeaway
+
+Panel A
+
+-   The two novel regimen trajectories are indistinguishable from each other.
+-   Both novel regimens appear to improve TTP faster than control.
+
+Panel B
+
+-   Individual trajectories are often high variance
+-   Individual trajectories tend to be increasing over time. There are very few that appear to start high/low and stay there. (e.g., treatment effect is observable)
+
+## TTP v. Time (MAMS-TB)
+
+```{r}
+#| fig-cap: "Observed TTP trajectories, where anything at or above 42 receives a value of 42."
+p1_mams <- df_analysis_mams %>% 
+  ggplot(aes(x = weeks, y = dtp_42, col = Treatm_arm, lty = Treatm_arm)) + 
+  # geom_point(alpha = 0.3,
+  #            position = position_jitter(width = 0.1,height = 0)) +
+  geom_smooth(method = lm, 
+              formula = y ~ splines::bs(x, 4), 
+              aes(group = Treatm_arm)) + 
+  scale_y_log10("TTP in days, log10 scale",
+                breaks = c(5,7,10,15,20,30,42),
+                labels = c(5,7,10,15,20,30,42)) + 
+  scale_x_continuous("Days from randomization", 
+                     breaks = 0:8,
+                     labels = seq(0,56, by = 7)) +
+  coord_cartesian(y = c(5,43))  + 
+  geom_hline(yintercept = 42, 
+             lty = 2) +
+  theme(legend.position = c(0.8,0.2),
+        legend.title = element_blank()) + 
+  scale_color_manual(values = ucsf_col_pal)
+
+p2_mams <- df_analysis_mams %>% 
+  ggplot(aes(x = weeks, y = dtp_42, group=patient.id)) + 
+  facet_wrap(~Treatm_arm, ncol = 1) + 
+  geom_line(alpha = 0.3,
+            col = "darkgray") + 
+  geom_smooth(aes(group = Treatm_arm,
+                  lty = Treatm_arm),
+              method = lm, 
+              formula = y ~ splines::bs(x, 4),
+              col = "black",
+              se = FALSE) + 
+  scale_y_log10("TTP in days, log10 scale",
+                breaks = c(5,7,10,15,20,30,42),
+                labels = c(5,7,10,15,20,30,42)) + 
+  scale_x_continuous("Days from randomization", 
+                     breaks = 0:8,
+                     labels = seq(0,56, by = 7)) +
+  coord_cartesian(y = c(5,43)) +
+  geom_hline(yintercept = 42, 
+             lty = 2) + 
+  theme(legend.position = "none")
+
+p1_mams + p2_mams + 
+  plot_annotation(tag_levels = "A")
+```
+
+```{r}
+#| eval: false
+ggsave(file = here("graphs", "descriptive", "01_trajectories-mams-tb.tiff"),
+       device = "tiff",
+       height = 7,
+       width = 11,
+       units = "in",
+       dpi = 300)
+```
+
+```{r}
+#| eval: false
+(p1 + p2) / (p1_mams + p2_mams) + 
+  plot_annotation(tag_levels = "A")
+
+ggsave(file = here("graphs", "descriptive", "01_trajectories-combined.tiff"),
+       device = "tiff",
+       height = 12,
+       width = 15,
+       units = "in",
+       dpi = 300)
+```
+
+## TTP v. Time (MAMS-TB) Takeaway
+
+Panel A
+
+-   There is substantial overlap between all regimens, but all appear to have steeper slope (at least initially) during the first 4 weeks.
+
+Panel B
+
+-   Individual trajectories are often high variance
+-   Individual trajectories tend to be increasing over time. There are very few that appear to start high/low and stay there. (e.g., treatment effect is observable)
+
+## Data Distribution v. Time
+
+\[WANT ALLUVIAL PLOT... \]
+
+```{r}
+p1 <- df_analysis_remox %>% 
+  group_by(weeks = round(weeks), treat) %>% 
+  summarise(prop.g25 = mean(dtp > 30 & !is.na(dtp))) %>% 
+  ggplot(aes(x = weeks, y = prop.g25, col = treat)) + 
+  geom_line() + 
+  scale_y_continuous("P(30 < DTP < 42)") +
+  coord_cartesian(ylim = c(0,1)) +
+  theme_bw() + 
+  theme(legend.title = element_blank())
+
+p2 <- df_analysis_remox %>% 
+  group_by(weeks = round(weeks), treat) %>% 
+  summarise(prop.g25 = mean(is.na(dtp))) %>% 
+  ggplot(aes(x = weeks, y = prop.g25, col = treat)) + 
+  geom_line() + 
+  scale_y_continuous("P(DTP >= 42)") +
+  coord_cartesian(ylim = c(0,1)) +
+  theme_bw() + 
+  theme(legend.title = element_blank())
+
+p3 <- df_analysis_remox %>% 
+  group_by(weeks = round(weeks), treat) %>% 
+  summarise(prop.g25 = mean(dtp <= 30)) %>% 
+  ggplot(aes(x = weeks, y = prop.g25, col = treat)) + 
+  geom_line() + 
+  scale_y_continuous("P(DTP <= 30)") +
+  coord_cartesian(ylim = c(0,1)) +
+  theme_bw() + 
+  theme(legend.title = element_blank())
+
+p2 / p1 / p3 + 
+  plot_annotation(tag_levels = "A")
+```
+
+## Weekly Alluvial Plot - REMoxTB
+
+```{r}
+df_remox_flow <-
+  df_analysis_remox %>% 
+  mutate(weeks_rounded = ceiling(weeks)) %>% 
+  group_by(trial_no, weeks_rounded) %>% 
+  mutate(dtp_mean = mean(dtp_42, na.rm = TRUE)) %>% # For individuals who have more than one observed TTP in a week
+  mutate(category = case_when(dtp_mean <= 30 ~ "TTP \u2264 30",
+                              dtp_mean > 30 & dtp_mean < 42 ~ "30 < TTP < 42",
+                              dtp_mean >= 42 | is.na(dtp_mean) ~ "TTP \u2265 42")) %>% 
+  mutate(category = factor(category, levels = c("TTP \u2265 42", "30 < TTP < 42", "TTP \u2264 30"))) %>% 
+  dplyr::select(trial_no, weeks_rounded, category) %>% 
+  distinct() #%>% arrange(trial_no, weeks_rounded) 
+
+alluv_remox <- ggplot(df_remox_flow, aes(x = weeks_rounded, stratum = category, alluvium = trial_no, fill = category)) + 
+  geom_flow() + 
+  scale_fill_manual(values = ucsf_col_pal[c(2,9,6)]) +
+  scale_x_continuous(breaks = 0:8,
+                     labels = 0:8) + 
+  geom_stratum(col = "white") +
+  labs(x = "Weeks from randomization",
+       y = "Number of samples") + 
+  theme(legend.title = element_blank())
+
+alluv_remox
+```
+
+## Weekly Alluvial Plot - MAMS-TB
+
+```{r}
+df_mams_flow <-
+  df_analysis_mams %>% 
+  mutate(weeks_rounded = floor(weeks)) %>% 
+  group_by(patient.id, weeks_rounded) %>% 
+  mutate(dtp_mean = mean(dtp_42, na.rm = TRUE)) %>% # For individuals who have more than one observed TTP in a week
+  mutate(category = case_when(dtp_mean <= 30 ~ "TTP \u2264 30",
+                              dtp_mean > 30 & dtp_mean < 42 ~ "30 < TTP < 42",
+                              dtp_mean >= 42 | is.na(dtp_mean) ~ "TTP \u2265 42")) %>% 
+  mutate(category = factor(category, levels = c("TTP \u2265 42", "30 < TTP < 42", "TTP \u2264 30"))) %>% 
+  dplyr::select(patient.id, weeks_rounded, category) %>% 
+  distinct() #%>% arrange(trial_no, weeks_rounded) 
+
+alluv_mams <- ggplot(df_mams_flow, aes(x = weeks_rounded, stratum = category, alluvium = patient.id, fill = category)) + 
+  geom_flow() + 
+  scale_fill_manual(values = ucsf_col_pal[c(2,9,6)]) +
+  scale_x_continuous(breaks = 0:8,
+                     labels = 0:8) + 
+  geom_stratum(col = "white") +
+  labs(x = "Weeks from randomization",
+       y = "Number of samples") + 
+  theme(legend.title = element_blank())
+
+alluv_mams
+```
+
+```{r}
+#| eval: false
+alluv_remox / alluv_mams + 
+  plot_annotation(tag_levels = "A") + 
+  plot_layout(guides = "collect")
+
+ggsave(file = here("graphs", "descriptive", "02_alluvial-combined.tiff"),
+       device = "tiff",
+       height = 5,
+       width = 7,
+       units = "in",
+       dpi = 300)
+```
+
+## Alluvial Plots: Takeaways
+
+-   "Most" people convert from TTP less than 30 to above the limit of detection *without* a sample returning a TTP between 30 and 42 days.
+-   The 30-42 day observations tend to occur in weeks 4+
+-   **NOTE** by week 8, the majority of samples are not returning any information.
+
 ## Weekly TTP Distribution (REMoxTB)
+
+```{r}
+#| fig-cap: "Distribution of TTP measures at each week post-randomization."
+df_analysis_remox %>% 
+  mutate(weeks_cat = floor(weeks)) %>% #with(., table(weeks_cat))
+  mutate(weeks_cat = factor(weeks_cat)) %>% 
+  ggplot(aes(x = dtp_42)) + 
+  facet_wrap(~weeks_cat)+#, 
+             # scales = "free_y") + 
+  geom_histogram() + 
+  geom_vline(xintercept = c(30,42), lty = 2) + 
+  scale_x_log10("Days to Positivity, log scale",
+                breaks = c(1,5,10,20,35),
+                labels = c(1,5,10,20,35)) + 
+  theme(axis.title.y = element_blank())
+```
+
+## Takeaway: Weekly TTP Distribution (REMoxTB)
+
+# Variance/Signal-to-Noise Investigation
+
+## Proportion of data censored for varying LOD limits
+
+*NOTE:* Maybe this should a "relative" to 42 plot, rather than an absolute plot? That would make it easier to read off the limits?
+
+```{r}
+p_cens_remox <- df_analysis_remox %>% 
+  group_by(week = floor(weeks)) %>% 
+  summarise("TTP \u2265 25" = mean(dtp_42 >= 25, na.rm = TRUE),
+            "TTP \u2265 30" = mean(dtp_42 >= 30, na.rm = TRUE),
+            "TTP \u2265 35" = mean(dtp_42 >= 35, na.rm = TRUE),
+            "TTP \u2265 42" = mean(dtp_42 >= 42, na.rm = TRUE)) %>% 
+  pivot_longer(names_to = "TTP cut-off",
+               values_to = "Proportion of data censored",
+               cols = 2:5) %>% 
+  ggplot(aes(x = week, y = `Proportion of data censored`, fill = `TTP cut-off`)) + 
+  geom_bar(position = position_dodge(),
+           col = "white",
+           stat = "identity") + 
+  scale_fill_manual(values = ucsf_col_pal) +
+  scale_y_continuous(breaks = seq(0,1,by = 0.1),
+                     labels = seq(0,1,by = 0.1)) + 
+  scale_x_continuous(breaks = 0:8,
+                     labels = 0:8) + 
+  labs(x = "Weeks since randomization") + 
+  coord_cartesian(ylim = c(0,1))
+
+p_cens_mams <- df_analysis_mams %>% 
+  group_by(week = floor(weeks)) %>% 
+  summarise("TTP \u2265 25" = mean(dtp_42 >= 25, na.rm = TRUE),
+            "TTP \u2265 30" = mean(dtp_42 >= 30, na.rm = TRUE),
+            "TTP \u2265 35" = mean(dtp_42 >= 35, na.rm = TRUE),
+            "TTP \u2265 42" = mean(dtp_42 >= 42, na.rm = TRUE)) %>% 
+  pivot_longer(names_to = "TTP cut-off",
+               values_to = "Proportion of data censored",
+               cols = 2:5) %>% 
+  ggplot(aes(x = week, y = `Proportion of data censored`, fill = `TTP cut-off`)) + 
+  geom_bar(position = position_dodge(),
+           col = "white",
+           stat = "identity") + 
+  scale_fill_manual(values = ucsf_col_pal) +
+  scale_y_continuous(breaks = seq(0,1,by = 0.1),
+                     labels = seq(0,1,by = 0.1)) + 
+  scale_x_continuous(breaks = 0:8,
+                     labels = 0:8) + 
+  labs(x = "Weeks since randomization") + 
+  coord_cartesian(ylim = c(0,1))
+
+p_cens_remox + p_cens_mams + 
+  plot_layout(guides = "collect") + 
+  plot_annotation(tag_levels = "A")  &
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| eval: false
+ggsave(file = here("graphs", "descriptive", "03_bar-censored-combined.tiff"),
+       device = "tiff",
+       height = 5,
+       width = 8,
+       units = "in",
+       dpi = 300)
+```
+
+## Table Censored (REMoxTB)
+
+```{r}
+df_analysis_remox %>% 
+  group_by(week = floor(weeks)) %>% 
+  summarise("TTP \u2265 25" = mean(dtp_42 >= 25, na.rm = TRUE),
+            "TTP \u2265 30" = mean(dtp_42 >= 30, na.rm = TRUE),
+            "TTP \u2265 35" = mean(dtp_42 >= 35, na.rm = TRUE),
+            "TTP \u2265 42" = mean(dtp_42 >= 42, na.rm = TRUE)) %>% 
+  mutate("Difference in proportions: 30 v 42 days" = `TTP ≥ 30` - `TTP ≥ 42`) %>% 
+  kable(digits = 3, 
+        caption = "Proportion censored") %>% 
+  kable_styling(font_size = 18)
+```
+
+## Table Censored (MAMS)
+
+```{r}
+df_analysis_mams %>% 
+  group_by(week = floor(weeks)) %>% 
+  summarise("TTP \u2265 25" = mean(dtp_42 >= 25, na.rm = TRUE),
+            "TTP \u2265 30" = mean(dtp_42 >= 30, na.rm = TRUE),
+            "TTP \u2265 35" = mean(dtp_42 >= 35, na.rm = TRUE),
+            "TTP \u2265 42" = mean(dtp_42 >= 42, na.rm = TRUE)) %>% 
+  mutate("Absolute difference in proportions: 30 v 42 days" = `TTP ≥ 30` - `TTP ≥ 42`) %>% 
+  kable(digits = 3,
+        caption = "Proportion censored") %>% 
+  kable_styling(font_size = 18)
+```
+
+```{r}
+#| eval: false
+df_analysis_mams %>% 
+  group_by(week = floor(weeks)) %>% 
+  summarise("TTP \u2265 25" = mean(dtp_42 >= 25, na.rm = TRUE),
+            "TTP \u2265 30" = mean(dtp_42 >= 30, na.rm = TRUE),
+            "TTP \u2265 35" = mean(dtp_42 >= 35, na.rm = TRUE),
+            "TTP \u2265 42" = mean(dtp_42 >= 42, na.rm = TRUE)) %>% 
+  # mutate("Absolute difference in proportions: 30 v 42 days" = `TTP ≥ 30` - `TTP ≥ 42`) %>% 
+  kable(digits = 3,
+        caption = "Proportion censored",
+        format = "latex") %>% 
+  kable_styling()
+```
+
+## Takeaway
+
+-   Changing the censoring limit to 30 or 35 has very limited impact on the proportion of data "left out" of the analyses, especially at early weeks where the data is the richest.
 
 # Modeling Work
 
-# 
+## MAMS-TB: LINEAR (population level)
+
+```{r}
+# mcmc_trace_fun <- function(pars){
+#   mcmc_trace(posterior_main,
+#              pars = pars,
+#              facet_args = list(nrow = 2, labeller = label_parsed)) 
+# }
+
+load(here("data", "model-generated", "2023-07-14_linear-mams-lod-42.RData"))
+load(here("data", "model-generated", "2023-07-14_linear-mams-lod-30.RData"))
+```
+
+```{r}
+
+library(tidybayes)
+o_42 <- m_linear_mams_42 %>% 
+  gather_draws(b_weeks) %>% 
+  median_hdci() %>% 
+  mutate(lod = 42)
+
+o_30 <- m_linear_mams_30 %>% 
+  gather_draws(b_weeks) %>% 
+  median_hdci() %>% 
+  mutate(lod = 30)
+
+bind_rows(o_42, o_30) %>% 
+  mutate(ci.width = .upper - .lower,
+         estimate.ratio = .value[lod == 30]/.value[lod == 42]) %>% 
+  mutate(ci.ratio = ci.width[lod == 30]/ci.width[lod==42]) %>% 
+  kable(digits = 3, caption = "30 may be too low for the MAMS data. Curious about other cutoffs. Perhaps a grid run? Linear models compile within 5 minutes.") %>% 
+  kable_styling(font_size = 16)
+```
+
+## MAMS-TB: Linear (treatment level)
+
+```{r}
+coef_primary_position <-
+    coef(m_linear_mams_30, summary = F)$Treatm_arm %>% 
+    as_tibble()
+
+t30 <- coef_primary_position %>% 
+  gather() %>% 
+  group_by(key) %>% 
+  mode_hdi(value) %>% 
+  mutate_if(is.double, round, digits = 3) #%>% 
+  # kable(digits = 3,
+  #       caption = "Posterior group-level estimates from the 30 day model.") %>% 
+  # kable_styling(font_size = 16)
+
+coef_primary_position_42 <-
+    coef(m_linear_mams_42, summary = F)$Treatm_arm %>% 
+    as_tibble()
+
+coef_primary_position_42 %>% 
+  gather() %>% 
+  group_by(key) %>% 
+  mode_hdi(value) %>% 
+  mutate_if(is.double, round, digits = 3) %>% 
+  bind_rows(t30) %>% 
+  kable(digits = 3,
+        caption = "Posterior group-level estimates from the 42 day model.") %>% 
+  kable_styling(font_size = 16) %>% 
+  pack_rows(group_label = "LOD = 30", 
+             start_row = 1,
+             end_row = 10) %>% 
+  pack_rows(group_label = "LOD = 42",
+             start_row = 11,
+             end_row = 20)
+```
+
+## MAMS-TB: Linear (visualization)
+
+```{r}
+coef_primary_position_42 %>% 
+  gather() %>% 
+  group_by(key) %>% 
+  mode_hdi(value) %>% 
+  mutate_if(is.double, round, digits = 3) %>% 
+  mutate(lod = 42) %>% 
+  bind_rows(mutate(t30, lod = 30)) %>% 
+  filter(str_detect(key, "weeks")) %>% 
+  mutate(CI.width = .upper - .lower) %>% 
+  group_by(key) %>% 
+  summarise(point.estimate.deviance = value[lod == 42] - value[lod == 30],
+            CI.width.difference = CI.width[lod == 42] - value[lod == 30]) %>% 
+  ggplot(aes(x = point.estimate.deviance, y = CI.width.difference)) +
+  geom_point(#alpha = 0.3,
+             aes(col = CI.width.difference)) + 
+  coord_cartesian(xlim = c(-0.15,0.15),
+                  ylim = c(-0.15,0.15)) + 
+  scale_color_gradient2(low = "red", high = "darkgreen") + 
+  labs(x = TeX("$\\hat{\\gamma}_{1j, 42} - \\hat{\\gamma}_{1j, 30}$"),
+       y = "95% CI width (42) - 95% CI width (30)") +
+  geom_hline(yintercept = 0) + 
+  geom_vline(xintercept = 0) + 
+  theme(legend.position = "none",
+        axis.line = element_blank())
+
+```
+
+## MAMS-TB: LOD = 42
+
+```{r}
+summary(m_linear_mams_42)
+```
+
+## MAMS-TB: LOD = 30
+
+```{r}
+summary(m_linear_mams_30)
+```
+
+## MAMS-TB: ALL (visualization)
+
+```{r}
+coef_primary_position_42 %>% 
+  gather() %>% 
+  group_by(key) %>% 
+  mode_hdi(value) %>% 
+  mutate_if(is.double, round, digits = 3) %>% 
+  mutate(lod = 42) %>% 
+  bind_rows(mutate(t30, lod = 30)) %>% 
+  filter(str_detect(key, "weeks")) %>% 
+  mutate(CI.width = .upper - .lower) %>% 
+  group_by(key) %>% 
+  summarise(point.estimate.deviance = value[lod == 42] - value[lod == 30],
+            CI.width.difference = CI.width[lod == 42] - value[lod == 30]) %>% 
+  ggplot(aes(x = point.estimate.deviance, y = CI.width.difference)) +
+  geom_point(#alpha = 0.3,
+             aes(col = CI.width.difference)) + 
+  coord_cartesian(xlim = c(-0.15,0.15),
+                  ylim = c(-0.15,0.15)) + 
+  scale_color_gradient2(low = "red", high = "darkgreen") + 
+  labs(x = TeX("$\\hat{\\gamma}_{1j, 42} - \\hat{\\gamma}_{1j, 30}$"),
+       y = "95% CI width (42) - 95% CI width (30)") +
+  geom_hline(yintercept = 0) + 
+  geom_vline(xintercept = 0) + 
+  theme(legend.position = "none",
+        axis.line = element_blank())
+```
