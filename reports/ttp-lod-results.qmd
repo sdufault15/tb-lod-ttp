@@ -22,10 +22,11 @@ library(knitr)
 library(patchwork)
 library(latex2exp)
 library(ggalluvial)
+library(tidybayes)
 
 source(here("lib", "ucsf-color-palette.R"))
-load(here("data", "cleaned-data", "2023-07-11_remoxtb-clean.RData"))
-load(here("data", "cleaned-data", "2023-07-11_mams-clean.RData"))
+load(here("data", "cleaned-data", "2023-07-31_remoxtb-clean.RData"))
+load(here("data", "cleaned-data", "2023-07-31_mams-clean.RData"))
 theme_set(ggpubr::theme_pubr())
 ```
 
@@ -115,6 +116,67 @@ ggsave(filename = here("graphs", "models", "00_models-hypothesized.tiff"),
 -   **LOD:** 20, 25, 30, 42
 
 # Descriptive Profile
+
+## Quick Summary
+
+:::: {.columns}
+
+::: {.column width="30%"}
+
+```{r}
+df_analysis_remox %>% 
+  group_by(ttp = cut(dtp_42, breaks = c(0,30,42,45), right = FALSE)) %>% 
+  summarise(n = n()) %>% 
+  mutate(prop = n/sum(n)) %>% 
+  kable(digits = 4,
+        caption = "REMoxTB") %>% 
+  kable_styling(font_size = 20)
+
+df_analysis_mams %>% 
+  group_by(ttp = cut(dtp_42, breaks = c(0,30,42,45), right = FALSE)) %>% 
+  summarise(n = n()) %>% 
+  mutate(prop = n/sum(n)) %>% 
+  kable(digits = 4,
+        caption = "MAMS-TB") %>% 
+  kable_styling(font_size = 20)
+```
+
+:::
+
+::: {.column width="30%"}
+
+```{r}
+df_analysis_remox %>% 
+  group_by(week = floor(weeks), 
+           ttp = cut(dtp_42, breaks = c(0,30,42,45), right = FALSE)) %>% 
+  summarise(n = n()) %>% 
+  group_by(week) %>%
+  mutate(prop = n/sum(n)) %>% 
+  kable(digits = 4,
+        caption = "REMoxTB") %>% 
+  kable_styling(font_size = 16)
+```
+
+:::
+
+::: {.column width="30%"}
+
+```{r}
+df_analysis_mams %>% 
+  group_by(week = floor(weeks), 
+           ttp = cut(dtp_42, breaks = c(0,30,42,45), right = FALSE)) %>% 
+  summarise(n = n()) %>% 
+  group_by(week) %>%
+  mutate(prop = n/sum(n)) %>% 
+  kable(digits = 4,
+        caption = "MAMS-TB") %>% 
+  kable_styling(font_size = 16)
+```
+
+:::
+
+::::
+
 
 ## TTP v. Time (REMoxTB)
 
@@ -413,16 +475,20 @@ df_analysis_remox %>%
 *NOTE:* Maybe this should a "relative" to 42 plot, rather than an absolute plot? That would make it easier to read off the limits?
 
 ```{r}
+# TTP \u2265 
+# TTP \u2265 
+# TTP \u2265 
+# TTP \u2265 
 p_cens_remox <- df_analysis_remox %>% 
   group_by(week = floor(weeks)) %>% 
-  summarise("TTP \u2265 25" = mean(dtp_42 >= 25, na.rm = TRUE),
-            "TTP \u2265 30" = mean(dtp_42 >= 30, na.rm = TRUE),
-            "TTP \u2265 35" = mean(dtp_42 >= 35, na.rm = TRUE),
-            "TTP \u2265 42" = mean(dtp_42 >= 42, na.rm = TRUE)) %>% 
-  pivot_longer(names_to = "TTP cut-off",
-               values_to = "Proportion of data censored",
+  summarise("25 days" = mean(dtp_42 < 25, na.rm = TRUE),
+            "30 days" = mean(dtp_42 < 30, na.rm = TRUE),
+            "35 days" = mean(dtp_42 < 35, na.rm = TRUE),
+            "42 days" = mean(dtp_42 < 42, na.rm = TRUE)) %>% 
+  pivot_longer(names_to = "TTP censoring limit",
+               values_to = "Proportion of samples below limit",
                cols = 2:5) %>% 
-  ggplot(aes(x = week, y = `Proportion of data censored`, fill = `TTP cut-off`)) + 
+  ggplot(aes(x = week, y = `Proportion of samples below limit`, fill = `TTP censoring limit`)) + 
   geom_bar(position = position_dodge(),
            col = "white",
            stat = "identity") + 
@@ -436,17 +502,18 @@ p_cens_remox <- df_analysis_remox %>%
 
 p_cens_mams <- df_analysis_mams %>% 
   group_by(week = floor(weeks)) %>% 
-  summarise("TTP \u2265 25" = mean(dtp_42 >= 25, na.rm = TRUE),
-            "TTP \u2265 30" = mean(dtp_42 >= 30, na.rm = TRUE),
-            "TTP \u2265 35" = mean(dtp_42 >= 35, na.rm = TRUE),
-            "TTP \u2265 42" = mean(dtp_42 >= 42, na.rm = TRUE)) %>% 
-  pivot_longer(names_to = "TTP cut-off",
-               values_to = "Proportion of data censored",
+  summarise("25 days" = mean(dtp_42 < 25, na.rm = TRUE),
+            "30 days" = mean(dtp_42 < 30, na.rm = TRUE),
+            "35 days" = mean(dtp_42 < 35, na.rm = TRUE),
+            "42 days" = mean(dtp_42 < 42, na.rm = TRUE)) %>% 
+  pivot_longer(names_to = "TTP censoring limit",
+               values_to = "Proportion of samples below limit",
                cols = 2:5) %>% 
-  ggplot(aes(x = week, y = `Proportion of data censored`, fill = `TTP cut-off`)) + 
+  ggplot(aes(x = week, y = `Proportion of samples below limit`, fill = `TTP censoring limit`)) + 
   geom_bar(position = position_dodge(),
            col = "white",
            stat = "identity") + 
+  # theme(axis.title.y = element_blank()) + 
   scale_fill_manual(values = ucsf_col_pal) +
   scale_y_continuous(breaks = seq(0,1,by = 0.1),
                      labels = seq(0,1,by = 0.1)) + 
@@ -476,13 +543,13 @@ ggsave(file = here("graphs", "descriptive", "03_bar-censored-combined.tiff"),
 ```{r}
 df_analysis_remox %>% 
   group_by(week = floor(weeks)) %>% 
-  summarise("TTP \u2265 25" = mean(dtp_42 >= 25, na.rm = TRUE),
-            "TTP \u2265 30" = mean(dtp_42 >= 30, na.rm = TRUE),
-            "TTP \u2265 35" = mean(dtp_42 >= 35, na.rm = TRUE),
-            "TTP \u2265 42" = mean(dtp_42 >= 42, na.rm = TRUE)) %>% 
-  mutate("Difference in proportions: 30 v 42 days" = `TTP ≥ 30` - `TTP ≥ 42`) %>% 
-  kable(digits = 3, 
-        caption = "Proportion censored") %>% 
+  summarise("25 days" = mean(dtp_42 < 25, na.rm = TRUE),
+            "30 days" = mean(dtp_42 < 30, na.rm = TRUE),
+            "35 days" = mean(dtp_42 < 35, na.rm = TRUE),
+            "42 days" = mean(dtp_42 < 42, na.rm = TRUE)) %>% 
+  mutate("Difference in proportions: 42 v 30 days" = `42 days` - `30 days`) %>%
+  kable(digits = 4, 
+        caption = "Proportion of samples below censoring limit") %>% 
   kable_styling(font_size = 18)
 ```
 
@@ -491,13 +558,13 @@ df_analysis_remox %>%
 ```{r}
 df_analysis_mams %>% 
   group_by(week = floor(weeks)) %>% 
-  summarise("TTP \u2265 25" = mean(dtp_42 >= 25, na.rm = TRUE),
-            "TTP \u2265 30" = mean(dtp_42 >= 30, na.rm = TRUE),
-            "TTP \u2265 35" = mean(dtp_42 >= 35, na.rm = TRUE),
-            "TTP \u2265 42" = mean(dtp_42 >= 42, na.rm = TRUE)) %>% 
-  mutate("Absolute difference in proportions: 30 v 42 days" = `TTP ≥ 30` - `TTP ≥ 42`) %>% 
-  kable(digits = 3,
-        caption = "Proportion censored") %>% 
+  summarise("25 days" = mean(dtp_42 < 25, na.rm = TRUE),
+            "30 days" = mean(dtp_42 < 30, na.rm = TRUE),
+            "35 days" = mean(dtp_42 < 35, na.rm = TRUE),
+            "42 days" = mean(dtp_42 < 42, na.rm = TRUE)) %>% 
+  mutate("Difference in proportions: 42 v 30 days" = `42 days` - `30 days`) %>% 
+  kable(digits = 4,
+        caption = "Proportion of samples below censoring limit") %>% 
   kable_styling(font_size = 18)
 ```
 
@@ -531,130 +598,195 @@ df_analysis_mams %>%
 #              facet_args = list(nrow = 2, labeller = label_parsed)) 
 # }
 
-load(here("data", "model-generated", "2023-07-14_linear-mams-lod-42.RData"))
-load(here("data", "model-generated", "2023-07-14_linear-mams-lod-30.RData"))
+load(here("data", "model-generated", "2023-07-20_linear-mams-lod-42.RData"))
+load(here("data", "model-generated", "2023-07-20_linear-mams-lod-30.RData"))
+load(here("data", "model-generated", "2023-07-20_linear-remox-lod-42.RData"))
+load(here("data", "model-generated", "2023-07-31_linear-remox-lod-30.RData"))
 ```
 
 ```{r}
-
-library(tidybayes)
-o_42 <- m_linear_mams_42 %>% 
-  gather_draws(b_weeks) %>% 
-  median_hdci() %>% 
+#| eval: false
+# THIS EVALUATES THE POPULATION-LEVEL SLOPE, BUT WE ARE INTERESTED IN THE GROUP-LEVEL SLOPE
+o_42 <- m_linear_mams_42 %>%
+  gather_draws(b_weeks) %>%
+  median_hdci() %>%
   mutate(lod = 42)
 
-o_30 <- m_linear_mams_30 %>% 
-  gather_draws(b_weeks) %>% 
-  median_hdci() %>% 
+o_30 <- m_linear_mams_30 %>%
+  gather_draws(b_weeks) %>%
+  median_hdci() %>%
   mutate(lod = 30)
 
-bind_rows(o_42, o_30) %>% 
+bind_rows(o_42, o_30) %>%
   mutate(ci.width = .upper - .lower,
-         estimate.ratio = .value[lod == 30]/.value[lod == 42]) %>% 
-  mutate(ci.ratio = ci.width[lod == 30]/ci.width[lod==42]) %>% 
-  kable(digits = 3, caption = "30 may be too low for the MAMS data. Curious about other cutoffs. Perhaps a grid run? Linear models compile within 5 minutes.") %>% 
+         estimate.ratio = .value[lod == 30]/.value[lod == 42]) %>%
+  mutate(ci.ratio = ci.width[lod == 30]/ci.width[lod==42]) %>%
+  kable(digits = 3, caption = "30 may be too low for the MAMS data. Curious about other cutoffs. Perhaps a grid run? Linear models compile within 5 minutes.") %>%
+  kable_styling(font_size = 16)
+
+o_42 <- m_linear_remox_42 %>%
+  gather_draws(b_weeks) %>%
+  median_hdci() %>%
+  mutate(lod = 42)
+
+o_30 <- m_linear_remox_30 %>%
+  gather_draws(b_weeks) %>%
+  median_hdci() %>%
+  mutate(lod = 30)
+
+bind_rows(o_42, o_30) %>%
+  mutate(ci.width = .upper - .lower,
+         estimate.ratio = .value[lod == 30]/.value[lod == 42]) %>%
+  mutate(ci.ratio = ci.width[lod == 30]/ci.width[lod==42]) %>%
+  kable(digits = 3, caption = "REMox") %>%
   kable_styling(font_size = 16)
 ```
 
 ## MAMS-TB: Linear (treatment level)
 
 ```{r}
-coef_primary_position <-
+coef_mams_30 <-
     coef(m_linear_mams_30, summary = F)$Treatm_arm %>% 
     as_tibble()
 
-t30 <- coef_primary_position %>% 
+t30 <- coef_mams_30 %>% 
   gather() %>% 
   group_by(key) %>% 
   mode_hdi(value) %>% 
-  mutate_if(is.double, round, digits = 3) #%>% 
-  # kable(digits = 3,
-  #       caption = "Posterior group-level estimates from the 30 day model.") %>% 
-  # kable_styling(font_size = 16)
+  mutate_if(is.double, round, digits = 3) 
 
-coef_primary_position_42 <-
+coef_mams_42 <-
     coef(m_linear_mams_42, summary = F)$Treatm_arm %>% 
     as_tibble()
 
-coef_primary_position_42 %>% 
+coefs_mams <- coef_mams_42 %>% 
   gather() %>% 
   group_by(key) %>% 
   mode_hdi(value) %>% 
   mutate_if(is.double, round, digits = 3) %>% 
   bind_rows(t30) %>% 
+  filter(str_detect(key, "weeks")) 
+
+coefs_mams %>% 
+  rename(" " = key, "Estimate" = value, "CI.l" = .lower, "CI.u" = .upper, "CI width" = .width, "Point Estimation" = .point, "CI Estimation" = .interval) %>% 
   kable(digits = 3,
-        caption = "Posterior group-level estimates from the 42 day model.") %>% 
+        caption = "(MAMS-TB) Posterior group-level estimates of slope from the 30- and 42-day models.") %>% 
   kable_styling(font_size = 16) %>% 
-  pack_rows(group_label = "LOD = 30", 
+  pack_rows(group_label = "LOD = 42", 
              start_row = 1,
-             end_row = 10) %>% 
-  pack_rows(group_label = "LOD = 42",
-             start_row = 11,
-             end_row = 20)
+             end_row = 5) %>% 
+  pack_rows(group_label = "LOD = 30",
+             start_row = 6,
+             end_row = 10)
 ```
 
-## MAMS-TB: Linear (visualization)
+## REMoxTB: Linear (treatment level)
 
 ```{r}
-coef_primary_position_42 %>% 
+coef_remox_30 <-
+    coef(m_linear_remox_30, summary = F)$treat %>% 
+    as_tibble()
+
+t30 <- coef_remox_30 %>% 
+  gather() %>% 
+  group_by(key) %>% 
+  mode_hdi(value) %>% 
+  mutate_if(is.double, round, digits = 3) 
+
+coef_remox_42 <-
+    coef(m_linear_remox_42, summary = F)$treat %>% 
+    as_tibble()
+
+coefs_remox <- coef_remox_42 %>% 
   gather() %>% 
   group_by(key) %>% 
   mode_hdi(value) %>% 
   mutate_if(is.double, round, digits = 3) %>% 
-  mutate(lod = 42) %>% 
-  bind_rows(mutate(t30, lod = 30)) %>% 
-  filter(str_detect(key, "weeks")) %>% 
+  bind_rows(t30) %>% 
+  filter(str_detect(key, "weeks")) 
+
+coefs_remox %>% 
+  rename(" " = key, "Estimate" = value, "CI.l" = .lower, "CI.u" = .upper, "CI width" = .width, "Point Estimation" = .point, "CI Estimation" = .interval) %>% 
+  kable(digits = 3,
+        caption = "(REMoxTB) Posterior group-level estimates of slope from the 30- and 42-day models.") %>% 
+  kable_styling(font_size = 16) %>% 
+  pack_rows(group_label = "LOD = 42", 
+             start_row = 1,
+             end_row = 3) %>% 
+  pack_rows(group_label = "LOD = 30",
+             start_row = 4,
+             end_row = 6)
+```
+
+
+## Linear changes in estimates
+
+```{r}
+# coefs_mams %>% 
+#   mutate(lod = c(rep(42, 5), rep(30,5))) %>% 
+#   mutate(CI.width = .upper - .lower) %>% 
+#   group_by(key) %>% 
+#   summarise(point.estimate.deviance = value[lod == 42] - value[lod == 30],
+#             CI.width.difference = CI.width[lod == 42] - CI.width[lod == 30]) %>% 
+#   ggplot(aes(x = point.estimate.deviance, y = CI.width.difference)) +
+#   geom_point(#alpha = 0.3,
+#              aes(col = CI.width.difference)) + 
+#   coord_cartesian(xlim = c(-0.15,0.15),
+#                   ylim = c(-0.15,0.15)) + 
+#   scale_color_gradient2(low = "red", high = "darkgreen") + 
+#   labs(x = TeX("$\\hat{\\gamma}_{1j, 42} - \\hat{\\gamma}_{1j, 30}$"),
+#        y = "95% CI width (42) - 95% CI width (30)") +
+#   geom_hline(yintercept = 0) + 
+#   geom_vline(xintercept = 0) + 
+#   theme(legend.position = "none",
+#         axis.line = element_blank())
+
+coefs_mams %>% 
+  mutate(lod = c(rep(42, 5), rep(30,5))) %>% 
+  mutate(CI.width = .upper - .lower) %>% 
+  group_by(key) %>% 
+  summarise(point.estimate.ratio = value[lod == 30]/value[lod == 42],
+            CI.width.ratio = CI.width[lod == 30]/CI.width[lod == 42]) %>% 
+  kable(digits = 4,
+        caption = "(MAMS-TB) Change in point estimate and confidence interval width (30 days / 42 days).") %>% 
+  kable_styling(font_size = 20)
+
+coefs_remox %>% 
+  mutate(lod = c(rep(42, 3), rep(30,3))) %>% 
+  mutate(CI.width = .upper - .lower) %>% 
+  group_by(key) %>% 
+  summarise(point.estimate.ratio = value[lod == 30]/value[lod == 42],
+            CI.width.ratio = CI.width[lod == 30]/CI.width[lod == 42]) %>% 
+  kable(digits = 4,
+        caption = "(REMoxTB) Change in point estimate and confidence interval width (30 days / 42 days).") %>% 
+  kable_styling(font_size = 20)
+```
+
+## ALL (visualization)
+
+```{r}
+mams_diff <- coefs_mams %>% 
+  mutate(lod = c(rep(42, 5), rep(30,5))) %>% 
   mutate(CI.width = .upper - .lower) %>% 
   group_by(key) %>% 
   summarise(point.estimate.deviance = value[lod == 42] - value[lod == 30],
-            CI.width.difference = CI.width[lod == 42] - value[lod == 30]) %>% 
-  ggplot(aes(x = point.estimate.deviance, y = CI.width.difference)) +
-  geom_point(#alpha = 0.3,
-             aes(col = CI.width.difference)) + 
-  coord_cartesian(xlim = c(-0.15,0.15),
-                  ylim = c(-0.15,0.15)) + 
-  scale_color_gradient2(low = "red", high = "darkgreen") + 
-  labs(x = TeX("$\\hat{\\gamma}_{1j, 42} - \\hat{\\gamma}_{1j, 30}$"),
-       y = "95% CI width (42) - 95% CI width (30)") +
-  geom_hline(yintercept = 0) + 
-  geom_vline(xintercept = 0) + 
-  theme(legend.position = "none",
-        axis.line = element_blank())
+            CI.width.difference = CI.width[lod == 42] - CI.width[lod == 30]) %>% 
+  mutate(data = "MAMS-TB")
 
-```
-
-## MAMS-TB: LOD = 42
-
-```{r}
-summary(m_linear_mams_42)
-```
-
-## MAMS-TB: LOD = 30
-
-```{r}
-summary(m_linear_mams_30)
-```
-
-## MAMS-TB: ALL (visualization)
-
-```{r}
-coef_primary_position_42 %>% 
-  gather() %>% 
-  group_by(key) %>% 
-  mode_hdi(value) %>% 
-  mutate_if(is.double, round, digits = 3) %>% 
-  mutate(lod = 42) %>% 
-  bind_rows(mutate(t30, lod = 30)) %>% 
-  filter(str_detect(key, "weeks")) %>% 
+remox_diff <- coefs_remox %>% 
+  mutate(lod = c(rep(42, 3), rep(30,3))) %>% 
   mutate(CI.width = .upper - .lower) %>% 
   group_by(key) %>% 
   summarise(point.estimate.deviance = value[lod == 42] - value[lod == 30],
-            CI.width.difference = CI.width[lod == 42] - value[lod == 30]) %>% 
-  ggplot(aes(x = point.estimate.deviance, y = CI.width.difference)) +
-  geom_point(#alpha = 0.3,
+            CI.width.difference = CI.width[lod == 42] - CI.width[lod == 30]) %>% 
+  mutate(data = "REMoxTB")
+
+bind_rows(mams_diff, remox_diff) %>% 
+  ggplot(aes(x = point.estimate.deviance, y = CI.width.difference, shape = data)) +
+  geom_point(#alpha = 0.9,
              aes(col = CI.width.difference)) + 
-  coord_cartesian(xlim = c(-0.15,0.15),
-                  ylim = c(-0.15,0.15)) + 
+  coord_cartesian(xlim = c(-0.01,0.01),
+                  ylim = c(-0.01,0.01)) + 
   scale_color_gradient2(low = "red", high = "darkgreen") + 
   labs(x = TeX("$\\hat{\\gamma}_{1j, 42} - \\hat{\\gamma}_{1j, 30}$"),
        y = "95% CI width (42) - 95% CI width (30)") +
