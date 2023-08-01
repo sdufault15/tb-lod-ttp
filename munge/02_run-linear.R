@@ -49,7 +49,7 @@ beepr::beep()
 ###########################
 # Run the models on REMox-TB
 ###########################
-load(here("data", "cleaned-data", "2023-07-20_remoxtb-clean.RData"))
+load(here("data", "cleaned-data", "2023-07-31_remoxtb-clean.RData"))
 # Model took 4.4 hours to run locally
 m_linear_remox_42 <- brm(log10(dtp_42) | cens(censored_42) ~ weeks + (1 + weeks | trial_no + treat), # run the model
                          data = df_analysis_remox,
