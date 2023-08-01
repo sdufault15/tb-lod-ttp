@@ -10,7 +10,7 @@ library(here)
 library(haven) # for calling in data that isn't in an RData format (e.g., .dta files)
 library(labelled) # for working with the labelled structure from the .dta files
 
-source(here("munge", "01_data-cleaning.R")) # cleans REMoxTB data
+source(here("munge", "01_data-cleaning.R")) # cleans REMoxTB and MAMS-TB data
 
 # Analysis
 source(here("munge", "02_run-linear.R"))
