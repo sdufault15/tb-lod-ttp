@@ -77,7 +77,6 @@ We restrict to those with:
 ## Methods - Models
 
 ```{r}
-# FIX PARAMETERIZATION - FIT REMOXTB with this model
 complex_biphasic_trend <- function(weeks, alpha, beta1, beta2, kappa, gamma){
   alpha + beta1 * weeks + beta2 * gamma * log((exp((weeks - kappa)/gamma) + exp(-(weeks - kappa)/gamma))/(exp(kappa/gamma) + exp(-kappa/gamma))) 
 }
@@ -119,10 +118,8 @@ ggsave(filename = here("graphs", "models", "00_models-hypothesized.tiff"),
 
 ## Quick Summary
 
-:::: {.columns}
-
+::: columns
 ::: {.column width="30%"}
-
 ```{r}
 df_analysis_remox %>% 
   group_by(ttp = cut(dtp_42, breaks = c(0,30,42,45), right = FALSE)) %>% 
@@ -140,11 +137,9 @@ df_analysis_mams %>%
         caption = "MAMS-TB") %>% 
   kable_styling(font_size = 20)
 ```
-
 :::
 
 ::: {.column width="30%"}
-
 ```{r}
 df_analysis_remox %>% 
   group_by(week = floor(weeks), 
@@ -154,13 +149,11 @@ df_analysis_remox %>%
   mutate(prop = n/sum(n)) %>% 
   kable(digits = 4,
         caption = "REMoxTB") %>% 
-  kable_styling(font_size = 16)
+  kable_styling(font_size = 12)
 ```
-
 :::
 
 ::: {.column width="30%"}
-
 ```{r}
 df_analysis_mams %>% 
   group_by(week = floor(weeks), 
@@ -170,13 +163,10 @@ df_analysis_mams %>%
   mutate(prop = n/sum(n)) %>% 
   kable(digits = 4,
         caption = "MAMS-TB") %>% 
-  kable_styling(font_size = 16)
+  kable_styling(font_size = 12)
 ```
-
 :::
-
-::::
-
+:::
 
 ## TTP v. Time (REMoxTB)
 
@@ -472,7 +462,7 @@ df_analysis_remox %>%
 
 ## Proportion of data censored for varying LOD limits
 
-*NOTE:* Maybe this should a "relative" to 42 plot, rather than an absolute plot? That would make it easier to read off the limits?
+*Idea:* Maybe this should a "relative" to 42 plot, rather than an absolute plot? Would that make it easier to read? or add in limited horizontal lines?
 
 ```{r}
 # TTP \u2265 
@@ -589,7 +579,7 @@ df_analysis_mams %>%
 
 # Modeling Work
 
-## MAMS-TB: LINEAR (population level)
+<!-- ## MAMS-TB: LINEAR (population level) -->
 
 ```{r}
 # mcmc_trace_fun <- function(pars){
@@ -668,9 +658,11 @@ coefs_mams <- coef_mams_42 %>%
   filter(str_detect(key, "weeks")) 
 
 coefs_mams %>% 
-  rename(" " = key, "Estimate" = value, "CI.l" = .lower, "CI.u" = .upper, "CI width" = .width, "Point Estimation" = .point, "CI Estimation" = .interval) %>% 
+  transmute(key, value, .lower, .upper, `CI width` = abs(.upper - .lower), .point, .interval) %>% 
+  rename(" " = key, "Estimate" = value, "CI.l" = .lower, "CI.u" = .upper, #"CI width" = .width,
+         "Point Estimation" = .point, "CI Estimation" = .interval) %>% 
   kable(digits = 3,
-        caption = "(MAMS-TB) Posterior group-level estimates of slope from the 30- and 42-day models.") %>% 
+        caption = "(MAMS-TB) Posterior group-level estimates of slope from the 30- and 42-day models (95% Credible Intervals).") %>% 
   kable_styling(font_size = 16) %>% 
   pack_rows(group_label = "LOD = 42", 
              start_row = 1,
@@ -706,7 +698,9 @@ coefs_remox <- coef_remox_42 %>%
   filter(str_detect(key, "weeks")) 
 
 coefs_remox %>% 
-  rename(" " = key, "Estimate" = value, "CI.l" = .lower, "CI.u" = .upper, "CI width" = .width, "Point Estimation" = .point, "CI Estimation" = .interval) %>% 
+  transmute(key, value, .lower, .upper, `CI width` = abs(.upper - .lower), .point, .interval) %>% 
+  rename(" " = key, "Estimate" = value, "CI.l" = .lower, "CI.u" = .upper, #"CI width" = .width, 
+         "Point Estimation" = .point, "CI Estimation" = .interval) %>% 
   kable(digits = 3,
         caption = "(REMoxTB) Posterior group-level estimates of slope from the 30- and 42-day models.") %>% 
   kable_styling(font_size = 16) %>% 
@@ -718,32 +712,12 @@ coefs_remox %>%
              end_row = 6)
 ```
 
-
 ## Linear changes in estimates
 
 ```{r}
-# coefs_mams %>% 
-#   mutate(lod = c(rep(42, 5), rep(30,5))) %>% 
-#   mutate(CI.width = .upper - .lower) %>% 
-#   group_by(key) %>% 
-#   summarise(point.estimate.deviance = value[lod == 42] - value[lod == 30],
-#             CI.width.difference = CI.width[lod == 42] - CI.width[lod == 30]) %>% 
-#   ggplot(aes(x = point.estimate.deviance, y = CI.width.difference)) +
-#   geom_point(#alpha = 0.3,
-#              aes(col = CI.width.difference)) + 
-#   coord_cartesian(xlim = c(-0.15,0.15),
-#                   ylim = c(-0.15,0.15)) + 
-#   scale_color_gradient2(low = "red", high = "darkgreen") + 
-#   labs(x = TeX("$\\hat{\\gamma}_{1j, 42} - \\hat{\\gamma}_{1j, 30}$"),
-#        y = "95% CI width (42) - 95% CI width (30)") +
-#   geom_hline(yintercept = 0) + 
-#   geom_vline(xintercept = 0) + 
-#   theme(legend.position = "none",
-#         axis.line = element_blank())
-
 coefs_mams %>% 
   mutate(lod = c(rep(42, 5), rep(30,5))) %>% 
-  mutate(CI.width = .upper - .lower) %>% 
+  mutate(CI.width = abs(.upper - .lower)) %>% 
   group_by(key) %>% 
   summarise(point.estimate.ratio = value[lod == 30]/value[lod == 42],
             CI.width.ratio = CI.width[lod == 30]/CI.width[lod == 42]) %>% 
@@ -753,7 +727,7 @@ coefs_mams %>%
 
 coefs_remox %>% 
   mutate(lod = c(rep(42, 3), rep(30,3))) %>% 
-  mutate(CI.width = .upper - .lower) %>% 
+  mutate(CI.width = abs(.upper - .lower)) %>% 
   group_by(key) %>% 
   summarise(point.estimate.ratio = value[lod == 30]/value[lod == 42],
             CI.width.ratio = CI.width[lod == 30]/CI.width[lod == 42]) %>% 
@@ -762,42 +736,168 @@ coefs_remox %>%
   kable_styling(font_size = 20)
 ```
 
+## MAMS-TB: Biphasic (treatment level)
+
+```{r}
+load(here("data", "model-generated", "2023-08-02_biphasic-mams-lod-30.RData"))
+load(here("data", "model-generated", "2023-08-02_biphasic-mams-lod-42.RData"))
+```
+
+```{r}
+# ADD IN DAYS - now, I think we're too low...
+coef_mams_30 <-
+    coef(m_nonlinear_mams_30, summary = F)$Treatm_arm %>% 
+    as_tibble() 
+
+t30 <- coef_mams_30 %>% 
+  gather() %>%
+  group_by(key) %>% #summarise(n = n())
+  mode_qi(value) %>% # things get duplicated here.... (qi works, but not hdi?)
+  mutate_if(is.double, round, digits = 3) %>% 
+  mutate(lod = 30)
+
+coef_mams_42 <-
+    coef(m_nonlinear_mams_42, summary = F)$Treatm_arm %>% 
+    as_tibble()
+
+coefs_mams_nl <- coef_mams_42 %>% 
+  gather() %>% 
+  group_by(key) %>% 
+  mode_qi(value) %>% 
+  mutate_if(is.double, round, digits = 3) %>%  
+  mutate(lod = 42) %>% 
+  bind_rows(t30) %>% 
+  filter(str_detect(key, "beta")) %>%
+  separate(col = key,
+           into = c("regimen", "coefficient"))
+
+coefs_mams_nl %>% 
+  transmute(regimen, coefficient, value, .lower, .upper, `CI width` = abs(.upper - .lower), .point, .interval, lod) %>% 
+  rename("Estimate" = value, "CI.l" = .lower, "CI.u" = .upper, 
+         "Point Estimation" = .point, "CI Estimation" = .interval) %>% 
+  arrange(coefficient, regimen) %>% 
+  kable(digits = 3,
+        # escape = FALSE,
+        caption = "(MAMS-TB) Posterior group-level estimates of slope from the 30- and 42-day models.") %>% 
+  kable_styling(font_size = 14) %>% 
+  pack_rows(group_label = "beta_1",
+             start_row = 1,
+             end_row = 10) %>%
+  pack_rows(group_label = "beta_2",
+             start_row = 11,
+             end_row = 20)
+```
+
+## REMoxTB: Biphasic (treatment level)
+
+```{r}
+load(here("data", "model-generated", "2023-08-04_biphasic-remox-lod-30.RData"))
+load(here("data", "model-generated", "2023-08-03_biphasic-remox-lod-42.RData"))
+```
+
+```{r}
+coef_remox_30 <-
+    coef(m_nonlinear_remox_30, summary = F)$treat %>% 
+    as_tibble() 
+
+t30 <- coef_remox_30 %>% 
+  gather() %>%
+  group_by(key) %>% #summarise(n = n())
+  mode_qi(value) %>% # things get duplicated here.... (qi works, but not hdi?)
+  mutate_if(is.double, round, digits = 3) %>% 
+  mutate(lod = 30)
+
+coef_remox_42 <-
+    coef(m_nonlinear_remox_42, summary = F)$treat %>% 
+    as_tibble()
+
+coefs_remox_nl <- coef_remox_42 %>% 
+  gather() %>% 
+  group_by(key) %>% 
+  mode_qi(value) %>% 
+  mutate_if(is.double, round, digits = 3) %>%  
+  mutate(lod = 42) %>% 
+  bind_rows(t30) %>% 
+  filter(str_detect(key, "beta")) %>%
+  separate(col = key,
+           into = c("nuis", "regimen", "regimen2", "coefficient")) %>% 
+  mutate(regimen = paste0(regimen, "/", regimen2)) %>% 
+  dplyr::select(-nuis, -regimen2)
+
+coefs_remox_nl %>% 
+  transmute(regimen, coefficient, value, .lower, .upper, `CI width` = abs(.upper - .lower), .point, .interval, lod) %>% 
+  rename("Estimate" = value, "CI.l" = .lower, "CI.u" = .upper, 
+         #"CI width" = .width, 
+         "Point Estimation" = .point, "CI Estimation" = .interval) %>% 
+  arrange(coefficient, regimen) %>% 
+  kable(digits = 3,
+        # escape = FALSE,
+        caption = "(REMoxTB) Posterior group-level estimates of slope from the 30- and 42-day models.") %>% 
+  kable_styling(font_size = 16) %>% 
+  pack_rows(group_label = "beta_1",
+             start_row = 1,
+             end_row = 6) %>%
+  pack_rows(group_label = "beta_2",
+             start_row = 7,
+             end_row = 12)
+```
+
 ## ALL (visualization)
 
 ```{r}
 mams_diff <- coefs_mams %>% 
   mutate(lod = c(rep(42, 5), rep(30,5))) %>% 
-  mutate(CI.width = .upper - .lower) %>% 
+  mutate(CI.width = abs(.upper - .lower)) %>% 
   group_by(key) %>% 
-  summarise(point.estimate.deviance = value[lod == 42] - value[lod == 30],
-            CI.width.difference = CI.width[lod == 42] - CI.width[lod == 30]) %>% 
+  summarise(point.estimate.ratio = value[lod == 30]/value[lod == 42],
+            CI.width.ratio = CI.width[lod == 30]/CI.width[lod == 42]) %>% 
   mutate(data = "MAMS-TB")
+
+mams_diff_nl <- coefs_mams_nl %>% 
+  mutate(CI.width = abs(.upper - .lower)) %>% 
+  group_by(regimen, coefficient) %>% 
+  summarise(point.estimate.ratio = value[lod == 30]/value[lod == 42],
+            CI.width.ratio = CI.width[lod == 30]/CI.width[lod == 42]) %>% 
+  mutate(data = "MAMS-TB (nl)")
 
 remox_diff <- coefs_remox %>% 
   mutate(lod = c(rep(42, 3), rep(30,3))) %>% 
-  mutate(CI.width = .upper - .lower) %>% 
+  mutate(CI.width = abs(.upper - .lower)) %>% 
   group_by(key) %>% 
-  summarise(point.estimate.deviance = value[lod == 42] - value[lod == 30],
-            CI.width.difference = CI.width[lod == 42] - CI.width[lod == 30]) %>% 
+  summarise(point.estimate.ratio = value[lod == 30]/value[lod == 42],
+            CI.width.ratio = CI.width[lod == 30]/CI.width[lod == 42]) %>% 
   mutate(data = "REMoxTB")
 
-bind_rows(mams_diff, remox_diff) %>% 
-  ggplot(aes(x = point.estimate.deviance, y = CI.width.difference, shape = data)) +
+remox_diff_nl <- coefs_remox_nl %>% 
+  mutate(CI.width = abs(.upper - .lower)) %>% 
+  group_by(regimen, coefficient) %>% 
+  summarise(point.estimate.ratio = value[lod == 30]/value[lod == 42],
+            CI.width.ratio = CI.width[lod == 30]/CI.width[lod == 42]) %>% 
+  mutate(data = "REMoxTB (nl)")
+
+bind_rows(rename(mams_diff, regimen = key), 
+          rename(remox_diff, regimen = key),
+          mams_diff_nl,
+          remox_diff_nl) %>% 
+  ggplot(aes(x = point.estimate.ratio, y = CI.width.ratio, shape = data)) +
   geom_point(#alpha = 0.9,
-             aes(col = CI.width.difference)) + 
-  coord_cartesian(xlim = c(-0.01,0.01),
-                  ylim = c(-0.01,0.01)) + 
-  scale_color_gradient2(low = "red", high = "darkgreen") + 
-  labs(x = TeX("$\\hat{\\gamma}_{1j, 42} - \\hat{\\gamma}_{1j, 30}$"),
-       y = "95% CI width (42) - 95% CI width (30)") +
-  geom_hline(yintercept = 0) + 
-  geom_vline(xintercept = 0) + 
-  theme(legend.position = "none",
-        axis.line = element_blank())
+             aes(col = CI.width.ratio)) + 
+  # coord_cartesian(#xlim = c(0,2),
+  #                 ylim = c(0,5)) +
+  coord_fixed(ylim = c(0.25,4.5),
+              xlim = c(0.25,4.5)) + 
+  scale_x_log10(breaks = c(0.1,0.5,1,2,4,6)) + 
+  scale_y_log10(breaks = c(0.1,0.5,1,2,4,6)) +
+  scale_color_gradient2(low = "darkgreen", mid = "green", high = "darkred") + 
+  labs(x = TeX("$\\hat{\\theta}_{j, 30} / \\hat{\\theta}_{j, 42}$"),
+       y = "95% CI width (30 day) / 95% CI width (42 day)") +
+  geom_hline(yintercept = 1, col = "black") + 
+  geom_vline(xintercept = 1, col = "black") + 
+  theme(axis.line = element_blank())
 ```
 
 ## Takeaway
 
-For the REMoxTB and MAMS-TB data, point estimates in the 30-day models *decrease* relative to the 42-day models, as expected when "removing" data at the upper end of the spectrum. 
+For the REMoxTB and MAMS-TB data, point estimates in the 30-day models *decrease* relative to the 42-day models, as expected when "removing" data at the upper end of the spectrum.
 
-However, credible intervals (e.g., precision) remain either the same or *improve* in the 30-day models relative to the 42-day models. In the REMoxTB data, the CIs improve more than the point estimates shrink. This is also true for 3 out of 5 arms in the MAMS-TB data. 
+However, credible intervals (e.g., precision) remain either the same or *improve* in the 30-day models relative to the 42-day models. In the REMoxTB data, the CIs improve more than the point estimates shrink. This is also true for 3 out of 5 arms in the MAMS-TB data.
