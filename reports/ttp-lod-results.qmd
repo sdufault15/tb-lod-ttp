@@ -112,7 +112,7 @@ ggsave(filename = here("graphs", "models", "00_models-hypothesized.tiff"),
 
 -   **Models:** Bayesian (linear fit), Burger bi-linear model, etc.
 
--   **LOD:** 20, 25, 30, 42
+-   **LOD:** 25, 30, 42
 
 # Descriptive Profile
 
@@ -590,6 +590,7 @@ df_analysis_mams %>%
 
 load(here("data", "model-generated", "2023-07-20_linear-mams-lod-42.RData"))
 load(here("data", "model-generated", "2023-07-20_linear-mams-lod-30.RData"))
+load(here("data", "model-generated", "2023-08-15_linear-mams-lod-25.RData"))
 load(here("data", "model-generated", "2023-07-20_linear-remox-lod-42.RData"))
 load(here("data", "model-generated", "2023-07-31_linear-remox-lod-30.RData"))
 ```
@@ -607,10 +608,15 @@ o_30 <- m_linear_mams_30 %>%
   median_hdci() %>%
   mutate(lod = 30)
 
-bind_rows(o_42, o_30) %>%
+o_25 <- m_linear_mams_25 %>%
+  gather_draws(b_weeks) %>%
+  median_hdci() %>%
+  mutate(lod = 25)
+
+bind_rows(o_42, o_30, o_25) %>%
   mutate(ci.width = .upper - .lower,
-         estimate.ratio = .value[lod == 30]/.value[lod == 42]) %>%
-  mutate(ci.ratio = ci.width[lod == 30]/ci.width[lod==42]) %>%
+         estimate.ratio = .value/.value[lod == 42]) %>%
+  mutate(ci.ratio = ci.width/ci.width[lod==42]) %>%
   kable(digits = 3, caption = "30 may be too low for the MAMS data. Curious about other cutoffs. Perhaps a grid run? Linear models compile within 5 minutes.") %>%
   kable_styling(font_size = 16)
 
@@ -635,6 +641,16 @@ bind_rows(o_42, o_30) %>%
 ## MAMS-TB: Linear (treatment level)
 
 ```{r}
+coef_mams_25 <-
+    coef(m_linear_mams_25, summary = F)$Treatm_arm %>% 
+    as_tibble()
+
+t25 <- coef_mams_25 %>% 
+  gather() %>% 
+  group_by(key) %>% 
+  mode_hdi(value) %>% 
+  mutate_if(is.double, round, digits = 3) 
+
 coef_mams_30 <-
     coef(m_linear_mams_30, summary = F)$Treatm_arm %>% 
     as_tibble()
@@ -655,6 +671,7 @@ coefs_mams <- coef_mams_42 %>%
   mode_hdi(value) %>% 
   mutate_if(is.double, round, digits = 3) %>% 
   bind_rows(t30) %>% 
+  bind_rows(t25) %>% 
   filter(str_detect(key, "weeks")) 
 
 coefs_mams %>% 
@@ -669,7 +686,10 @@ coefs_mams %>%
              end_row = 5) %>% 
   pack_rows(group_label = "LOD = 30",
              start_row = 6,
-             end_row = 10)
+             end_row = 10) %>% 
+  pack_rows(group_label = "LOD = 25",
+             start_row = 11,
+             end_row = 15)
 ```
 
 ## REMoxTB: Linear (treatment level)
@@ -716,11 +736,13 @@ coefs_remox %>%
 
 ```{r}
 coefs_mams %>% 
-  mutate(lod = c(rep(42, 5), rep(30,5))) %>% 
+  mutate(lod = c(rep(42, 5), rep(30,5), rep(25,5))) %>% 
   mutate(CI.width = abs(.upper - .lower)) %>% 
   group_by(key) %>% 
-  summarise(point.estimate.ratio = value[lod == 30]/value[lod == 42],
-            CI.width.ratio = CI.width[lod == 30]/CI.width[lod == 42]) %>% 
+  summarise(point.estimate.ratio.30.42 = value[lod==30]/value[lod == 42],
+            CI.width.ratio.30.42 = CI.width[lod==30]/CI.width[lod == 42],
+            point.estimate.ratio.25.42 = value[lod==25]/value[lod == 42],
+            CI.width.ratio.25.42 = CI.width[lod==25]/CI.width[lod == 42]) %>% 
   kable(digits = 4,
         caption = "(MAMS-TB) Change in point estimate and confidence interval width (30 days / 42 days).") %>% 
   kable_styling(font_size = 20)
@@ -744,7 +766,6 @@ load(here("data", "model-generated", "2023-08-02_biphasic-mams-lod-42.RData"))
 ```
 
 ```{r}
-# ADD IN DAYS - now, I think we're too low...
 coef_mams_30 <-
     coef(m_nonlinear_mams_30, summary = F)$Treatm_arm %>% 
     as_tibble() 
@@ -846,54 +867,83 @@ coefs_remox_nl %>%
 
 ```{r}
 mams_diff <- coefs_mams %>% 
-  mutate(lod = c(rep(42, 5), rep(30,5))) %>% 
+  mutate(lod = c(rep(42, 5), rep(30,5), rep(25,5))) %>% 
   mutate(CI.width = abs(.upper - .lower)) %>% 
   group_by(key) %>% 
-  summarise(point.estimate.ratio = value[lod == 30]/value[lod == 42],
-            CI.width.ratio = CI.width[lod == 30]/CI.width[lod == 42]) %>% 
+  # Comparing each lod against 42
+  summarise(lod, 
+            point.estimate.ratio = value/value[lod == 42],
+            CI.width.ratio = CI.width/CI.width[lod == 42]) %>% 
+  # Removing reference (lod = 42)
+  filter(lod != 42) %>% 
   mutate(data = "MAMS-TB")
 
 mams_diff_nl <- coefs_mams_nl %>% 
   mutate(CI.width = abs(.upper - .lower)) %>% 
   group_by(regimen, coefficient) %>% 
-  summarise(point.estimate.ratio = value[lod == 30]/value[lod == 42],
-            CI.width.ratio = CI.width[lod == 30]/CI.width[lod == 42]) %>% 
+  # Comparing each lod against 42
+  summarise(lod, 
+            point.estimate.ratio = value/value[lod == 42],
+            CI.width.ratio = CI.width/CI.width[lod == 42]) %>% 
+  # Removing reference (lod = 42)
+  filter(lod != 42) %>% 
   mutate(data = "MAMS-TB (nl)")
 
 remox_diff <- coefs_remox %>% 
   mutate(lod = c(rep(42, 3), rep(30,3))) %>% 
   mutate(CI.width = abs(.upper - .lower)) %>% 
   group_by(key) %>% 
-  summarise(point.estimate.ratio = value[lod == 30]/value[lod == 42],
-            CI.width.ratio = CI.width[lod == 30]/CI.width[lod == 42]) %>% 
+  # Comparing each lod against 42
+  summarise(lod, 
+            point.estimate.ratio = value/value[lod == 42],
+            CI.width.ratio = CI.width/CI.width[lod == 42]) %>% 
+  # Removing reference (lod = 42)
+  filter(lod != 42) %>% 
   mutate(data = "REMoxTB")
 
 remox_diff_nl <- coefs_remox_nl %>% 
   mutate(CI.width = abs(.upper - .lower)) %>% 
   group_by(regimen, coefficient) %>% 
-  summarise(point.estimate.ratio = value[lod == 30]/value[lod == 42],
-            CI.width.ratio = CI.width[lod == 30]/CI.width[lod == 42]) %>% 
+  summarise(lod, 
+            point.estimate.ratio = value/value[lod == 42],
+            CI.width.ratio = CI.width/CI.width[lod == 42]) %>% 
+   # Removing reference (lod = 42)
+  filter(lod != 42) %>% 
   mutate(data = "REMoxTB (nl)")
 
 bind_rows(rename(mams_diff, regimen = key), 
           rename(remox_diff, regimen = key),
           mams_diff_nl,
           remox_diff_nl) %>% 
-  ggplot(aes(x = point.estimate.ratio, y = CI.width.ratio, shape = data)) +
-  geom_point(#alpha = 0.9,
-             aes(col = CI.width.ratio)) + 
-  # coord_cartesian(#xlim = c(0,2),
-  #                 ylim = c(0,5)) +
-  coord_fixed(ylim = c(0.25,4.5),
-              xlim = c(0.25,4.5)) + 
-  scale_x_log10(breaks = c(0.1,0.5,1,2,4,6)) + 
-  scale_y_log10(breaks = c(0.1,0.5,1,2,4,6)) +
-  scale_color_gradient2(low = "darkgreen", mid = "green", high = "darkred") + 
-  labs(x = TeX("$\\hat{\\theta}_{j, 30} / \\hat{\\theta}_{j, 42}$"),
-       y = "95% CI width (30 day) / 95% CI width (42 day)") +
+  mutate(`Censoring Limit (days)` = as.factor(lod),
+         `Dataset + Model` = data) %>% 
+  ggplot(aes(x = point.estimate.ratio, y = CI.width.ratio)) +
   geom_hline(yintercept = 1, col = "black") + 
   geom_vline(xintercept = 1, col = "black") + 
-  theme(axis.line = element_blank())
+  geom_point(alpha = 0.8,
+             size = 1.8,
+             aes(col = `Dataset + Model`,
+                 shape = `Censoring Limit (days)`)) +
+  scale_shape_manual(values = c(3,4)) + 
+  coord_fixed(ylim = c(0.25,4.5),
+              xlim = c(0.25,4.5)) +
+  scale_x_log10(breaks = c(0.1,0.5,1,2,4,6)) + 
+  scale_y_log10(breaks = c(0.1,0.5,1,2,4,6)) +
+  scale_color_manual(values = ucsf_col_pal[c(2,3,8,9)]) + 
+  labs(x = TeX("$\\hat{\\theta}_{j, \\cdot} / \\hat{\\theta}_{j, 42}$"),
+       y = "95% CI width / 95% CI width (42 day)") +
+  theme(axis.line = element_blank(),
+        legend.position = "right")
+```
+
+```{r}
+#| eval: false
+ggsave(filename = here("graphs", "models", "05_point-plot_model-estimate-ratios.png"), 
+       device = "png",
+       height = 5,
+       width = 6, 
+       units = "in")
+
 ```
 
 ## Takeaway
