@@ -46,6 +46,24 @@ save(m_linear_mams_30,
 rm(m_linear_mams_30, df_analysis_mams)
 beepr::beep()
 
+load(here("data", "cleaned-data", "2023-08-15_mams-clean.RData"))
+m_linear_mams_25 <- brm(log10(dtp_25) | cens(censored_25) ~ weeks + (1 + weeks | patient.id + Treatm_arm), # run the model
+                        data = df_analysis_mams,
+                        inits = 0,
+                        chains = 4,
+                        control = list(adapt_delta = 0.99),
+                        iter = 2000,
+                        backend = "cmdstanr", # attempt to improve convergence speed
+                        save_pars=save_pars(group=FALSE), # attempt to decrease file size
+                        normalize = FALSE, # attempt to improve speed of convergence (https://discourse.mc-stan.org/t/faster-convergence/21532)
+                        prior = prior(normal(0,4), class = "Intercept"))
+
+save(m_linear_mams_25,
+     file = here("data", "model-generated", 
+                 paste0(Sys.Date(), "_linear-mams-lod-25.RData")))
+rm(m_linear_mams_25, df_analysis_mams)
+beepr::beep()
+
 ###########################
 # Run the models on REMox-TB
 ###########################

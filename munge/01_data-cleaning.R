@@ -22,7 +22,10 @@ df_analysis_remox <- dta_full_remox %>%
          censored_42 = ifelse(result == 0 & is.na(dtp), "right", "none")) %>% 
   # Adding in 30 day censoring (for modeling)
   mutate(dtp_30 = ifelse(dtp_42 >= 30, 30, dtp_42),
-         censored_30 = ifelse(dtp_42 >= 30, "right", "none")) 
+         censored_30 = ifelse(dtp_42 >= 30, "right", "none")) %>% 
+  # Adding in 25 day censoring (for modeling)
+  mutate(dtp_25 = ifelse(dtp_42 >= 25, 25, dtp_42),
+         censored_25 = ifelse(dtp_42 >= 25, "right", "none")) 
 
 save(df_analysis_remox,
      file = here("data", "cleaned-data", 
@@ -51,6 +54,9 @@ df_analysis_mams <- df_mams %>%
   # Adding in 30 day censoring (for modeling)
   mutate(dtp_30 = ifelse(dtp_42 >= 30, 30, dtp_42),
          censored_30 = ifelse(dtp_42 >= 30, "right", "none")) %>% 
+  # Adding in 25 day censoring (for modeling)
+  mutate(dtp_25 = ifelse(dtp_42 >= 25, 25, dtp_42),
+         censored_25 = ifelse(dtp_42 >= 25, "right", "none")) %>% 
   filter(!is.na(dtp))
 
 save(df_analysis_mams,
