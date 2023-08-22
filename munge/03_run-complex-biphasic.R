@@ -29,7 +29,7 @@ m_nonlinear_mams_42 <- brm(bf(log10(dtp_42) | cens(censored_42) ~ alpha + beta1*
                            chains = 4,
                            save_pars = save_pars(group = FALSE),
                            control = list(adapt_delta = 0.99),
-                           iter = 2000)
+                           iter = 4000)
 
 save(m_nonlinear_mams_42,
      file = here("data", "model-generated", 
@@ -52,7 +52,7 @@ m_nonlinear_mams_30 <- brm(bf(log10(dtp_30) | cens(censored_30) ~ alpha + beta1*
                            chains = 4,
                            save_pars = save_pars(group = FALSE),
                            control = list(adapt_delta = 0.99),
-                           iter = 2000)
+                           iter = 4000)
 save(m_nonlinear_mams_30,
      file = here("data", "model-generated", 
                  paste0(Sys.Date(), "_biphasic-mams-lod-30.RData")))
@@ -78,7 +78,7 @@ m_nonlinear_remox_42 <- brm(bf(log10(dtp_42) | cens(censored_42) ~ alpha + beta1
                            chains = 4,
                            save_pars = save_pars(group = FALSE),
                            control = list(adapt_delta = 0.99),
-                           iter = 2000)
+                           iter = 4000)
 
 save(m_nonlinear_remox_42,
      file = here("data", "model-generated", 
@@ -101,7 +101,7 @@ m_nonlinear_remox_30 <- brm(bf(log10(dtp_30) | cens(censored_30) ~ alpha + beta1
                            chains = 4,
                            save_pars = save_pars(group = FALSE),
                            control = list(adapt_delta = 0.99),
-                           iter = 2000)
+                           iter = 4000)
 save(m_nonlinear_remox_30,
      file = here("data", "model-generated", 
                  paste0(Sys.Date(), "_biphasic-remox-lod-30.RData")))
