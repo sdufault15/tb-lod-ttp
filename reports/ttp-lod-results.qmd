@@ -958,6 +958,70 @@ For the REMoxTB and MAMS-TB data, point estimates in the 30-day models *decrease
 
 However, credible intervals (e.g., precision) remain either the same or *improve* in the 30-day models relative to the 42-day models. In the REMoxTB data, the CIs improve more than the point estimates shrink. This is also true for 3 out of 5 arms in the MAMS-TB data.
 
+# Sensitivity Analyses
+
+```{r}
+load(here("data", "model-generated", "2023-08-24_linear-mams-lod-42_sensitivity.RData"))
+load(here("data", "model-generated", "2023-08-24_linear-mams-lod-30_sensitivity.RData"))
+load(here("data", "model-generated", "2023-08-24_linear-mams-lod-25_sensitivity.RData"))
+load(here("data", "model-generated", "2023-08-24_linear-remox-lod-42_sensitivity.RData"))
+load(here("data", "model-generated", "2023-08-24_linear-remox-lod-30_sensitivity.RData"))
+load(here("data", "model-generated", "2023-08-24_linear-remox-lod-25_sensitivity.RData"))
+```
+
+## MAMS-TB: Linear
+```{r}
+coef_mams_25s <-
+    coef(m_linear_mams_25s, summary = F)$Treatm_arm %>% 
+    as_tibble()
+
+t25 <- coef_mams_25s %>% 
+  gather() %>% 
+  group_by(key) %>% 
+  mode_hdi(value) %>% 
+  mutate_if(is.double, round, digits = 3) 
+
+coef_mams_30s <-
+    coef(m_linear_mams_30s, summary = F)$Treatm_arm %>% 
+    as_tibble()
+
+t30 <- coef_mams_30s %>% 
+  gather() %>% 
+  group_by(key) %>% 
+  mode_hdi(value) %>% 
+  mutate_if(is.double, round, digits = 3) 
+
+coef_mams_42s <-
+    coef(m_linear_mams_42s, summary = F)$Treatm_arm %>% 
+    as_tibble()
+
+coefs_mams <- coef_mams_42s %>% 
+  gather() %>% 
+  group_by(key) %>% 
+  mode_hdi(value) %>% 
+  mutate_if(is.double, round, digits = 3) %>% 
+  bind_rows(t30) %>% 
+  bind_rows(t25) %>% 
+  filter(str_detect(key, "weeks")) 
+
+coefs_mams %>% 
+  transmute(key, value, .lower, .upper, `CI width` = abs(.upper - .lower), .point, .interval) %>% 
+  rename(" " = key, "Estimate" = value, "CI.l" = .lower, "CI.u" = .upper, #"CI width" = .width,
+         "Point Estimation" = .point, "CI Estimation" = .interval) %>% 
+  kable(digits = 3,
+        caption = "(MAMS-TB) Posterior group-level estimates of slope from the 30- and 42-day models (95% Credible Intervals).") %>% 
+  kable_styling(font_size = 16) %>% 
+  pack_rows(group_label = "LOD = 42", 
+             start_row = 1,
+             end_row = 5) %>% 
+  pack_rows(group_label = "LOD = 30",
+             start_row = 6,
+             end_row = 10) %>% 
+  pack_rows(group_label = "LOD = 25",
+             start_row = 11,
+             end_row = 15)
+```
+
 # Model Convergence - MAMS-TB
 
 ## MAMS-TB: Linear 25-day {.scrollable}
