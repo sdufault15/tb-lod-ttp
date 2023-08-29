@@ -967,26 +967,31 @@ m_linear_mams_25
 ```
 
 ## MAMS-TB: Linear 25-day posterior {.scrollable}
+
 ```{r}
 plot(m_linear_mams_25, ask = FALSE)
 ```
 
 ## MAMS-TB: Linear 30-day {.scrollable}
+
 ```{r}
 m_linear_mams_30
 ```
 
 ## MAMS-TB: Linear 30-day posterior {.scrollable}
+
 ```{r}
 plot(m_linear_mams_30, ask = FALSE)
 ```
 
 ## MAMS-TB: Linear 42-day {.scrollable}
+
 ```{r}
 m_linear_mams_42
 ```
 
 ## MAMS-TB: Linear 42-day posterior {.scrollable}
+
 ```{r}
 plot(m_linear_mams_42, ask = FALSE)
 ```
@@ -994,30 +999,39 @@ plot(m_linear_mams_42, ask = FALSE)
 ## MAMS-TB: Nonlinear 25-day {.scrollable}
 
 <!-- ```{r} -->
+
 <!-- m_nonlinear_mams_25 -->
+
 <!-- ``` -->
 
 ## MAMS-TB: Nonlinear 25-day posterior {.scrollable}
+
 <!-- ```{r} -->
+
 <!-- plot(m_nonlinear_mams_25, ask = FALSE) -->
+
 <!-- ``` -->
 
 ## MAMS-TB: Nonlinear 30-day {.scrollable}
+
 ```{r}
 m_nonlinear_mams_30
 ```
 
 ## MAMS-TB: Nonlinear 30-day posterior {.scrollable}
+
 ```{r}
 plot(m_nonlinear_mams_30, ask = FALSE)
 ```
 
 ## MAMS-TB: Nonlinear 42-day {.scrollable}
+
 ```{r}
 m_nonlinear_mams_42
 ```
 
 ## MAMS-TB: Nonlinear 42-day posterior {.scrollable}
+
 ```{r}
 plot(m_nonlinear_mams_42, ask = FALSE)
 ```
@@ -1027,30 +1041,39 @@ plot(m_nonlinear_mams_42, ask = FALSE)
 ## REMoxTB: Linear 25-day {.scrollable}
 
 <!-- ```{r} -->
+
 <!-- m_linear_remox_25 -->
+
 <!-- ``` -->
 
 ## REMoxTB: Linear 25-day posterior {.scrollable}
+
 <!-- # ```{r} -->
+
 <!-- # plot(m_linear_remox_25, ask = FALSE) -->
+
 <!-- # ``` -->
 
 ## REMoxTB: Linear 30-day {.scrollable}
+
 ```{r}
 m_linear_remox_30
 ```
 
 ## REMoxTB: Linear 30-day posterior {.scrollable}
+
 ```{r}
 plot(m_linear_remox_30, ask = FALSE)
 ```
 
 ## REMoxTB: Linear 42-day {.scrollable}
+
 ```{r}
 m_linear_remox_42
 ```
 
 ## REMoxTB: Linear 42-day posterior {.scrollable}
+
 ```{r}
 plot(m_linear_remox_42, ask = FALSE)
 ```
@@ -1058,31 +1081,39 @@ plot(m_linear_remox_42, ask = FALSE)
 ## REMoxTB: Nonlinear 25-day {.scrollable}
 
 <!-- ```{r} -->
+
 <!-- m_nonlinear_remox_25 -->
+
 <!-- ``` -->
 
 ## REMoxTB: Nonlinear 25-day posterior {.scrollable}
+
 <!-- ```{r} -->
+
 <!-- plot(m_nonlinear_remox_25, ask = FALSE) -->
+
 <!-- ``` -->
 
 ## REMoxTB: Nonlinear 30-day {.scrollable}
+
 ```{r}
 m_nonlinear_remox_30
 ```
 
 ## REMoxTB: Nonlinear 30-day posterior {.scrollable}
+
 ```{r}
 plot(m_nonlinear_remox_30, ask = FALSE)
 ```
 
 ## REMoxTB: Nonlinear 42-day {.scrollable}
+
 ```{r}
 m_nonlinear_remox_42
 ```
 
 ## REMoxTB: Nonlinear 42-day posterior {.scrollable}
+
 ```{r}
 plot(m_nonlinear_remox_42, ask = FALSE)
 ```
-
