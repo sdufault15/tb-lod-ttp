@@ -1,0 +1,298 @@
+---
+title: "Debugging non-linear models"
+author: "Suzanne M Dufault"
+format: 
+  html:
+    self-contained: true
+    self-contained-math: true
+editor: visual
+execute:
+  warning: false
+  message: false
+editor_options: 
+  chunk_output_type: console
+---
+
+# Fixing Convergence Issues: Bi-Phasic Model
+
+```{r}
+library(tidyverse)
+library(here)
+library(brms)
+library(parallelly)
+library(cmdstanr)
+library(rstan)
+rstan_options(auto_write = TRUE)
+options(mc.cores = parallelly::availableCores())
+
+load(here("data", "cleaned-data", "2023-08-15_remoxtb-clean.RData"))
+load(here("data", "cleaned-data", "2023-08-15_mams-clean.RData"))
+```
+
+General tip: Debug with 1 chain and few iterations.
+
+```{r}
+m_orig <- brm(bf(log10(dtp_42) | cens(censored_42) ~ alpha + beta1*weeks + beta2*gamma*log((exp((weeks-kappa)/gamma) + exp(-(weeks-kappa)/gamma))/(exp(kappa/gamma) + exp(-kappa/gamma))),
+                              alpha + beta1 + beta2 + kappa + gamma ~ 1 + (1|patient.id + Treatm_arm), #specifying individual-level and regimen-level effects
+                              nl = TRUE), # specify non-linear
+                           family = gaussian(),
+                           init = 0, # Starting here 
+                           data = df_analysis_mams,
+                           backend = "cmdstanr",
+                           normalize = FALSE,
+                           prior = c(prior(normal(0,4), nlpar = "alpha"), 
+                                     prior(normal(0,4), nlpar = "beta1"),
+                                     prior(normal(0,4), nlpar = "beta2"),
+                                     set_prior("uniform(2,11)", lb = 2, ub = 11, nlpar = "kappa"), # from Burger + Schall
+                                     set_prior("uniform(0.1,2)", lb = 0.1, ub = 2, nlpar = "gamma")), # from Burger + Schall
+                           chains = 1,
+                           save_pars = save_pars(group = FALSE),
+                           control = list(adapt_delta = 0.99),
+                           iter = 1000)
+```
+
+When running this code, there are many warnings that occur, including:
+
+```
+Chain 1 Informational Message: The current Metropolis proposal is about to be rejected because of the following issue:
+Chain 1 Exception: normal_lpdf: Location parameter is -inf, but must be finite! (in '/var/folders/x6/c01vlqld2yg0j260p2kwcbpm0000gp/T/RtmpRHtX9E/model-7ad7544bb422.stan', line 194, column 8 to column 52)
+Chain 1 If this warning occurs sporadically, such as for highly constrained variable types like covariance matrices, then the sampler is fine,
+Chain 1 but if this warning occurs often then your model may be either severely ill-conditioned or misspecified.
+Chain 1 
+
+Warning: 412 of 500 (82.0%) transitions ended with a divergence.
+See https://mc-stan.org/misc/warnings for details.
+
+Warning: 88 of 500 (18.0%) transitions hit the maximum treedepth limit of 10.
+See https://mc-stan.org/misc/warnings for details.
+```
+
+We have now traced back the majority of the Chain specific Metropolis warnings to the nature of `cmdstanr`. These warnings disappear when this backend is not used, but I am not sure whether they are important or not. 
+
+```{r}
+#| fig-height: 10
+library(tidybayes)
+
+summary(m_orig)
+plot(m_orig, ask = FALSE)
+```
+
+Clearly, this model is a mess, and it's not just a result of limited sampling of the posterior. 
+
+## Starting Fresh
+
+We didn't quite follow Burger and Schall exactly. Here, I want to test whether I can implement an equivalent model to theirs on the REMoxTB data... priors and all... and see if that helps with the issues we're seeing. 
+
+```{r}
+#| echo: TRUE
+bform <- bf(log10(dtp_42)|cens(censored_42) ~ alpha + beta1*weeks + beta2*gamma*log((exp((weeks-kappa)/gamma) + exp(-(weeks-kappa)/gamma))/(exp(kappa/gamma) + exp(-kappa/gamma))),
+             alpha + beta1 + beta2 ~ 1 + (1|treat + trial_no),
+             gamma ~ 1 + (1|treat), # burger and schall specify these at the level of treatment for computational reasons
+             kappa ~ 1 + (1|treat),
+            nl = TRUE
+)
+
+# Explore how the current model is translated into Stan code
+make_stancode(bform,
+              data = df_analysis_remox,
+              save_model = "biphasic-param_00")
+
+get_prior(bform, data = df_analysis_remox)
+```
+
+Let's go even simpler.
+```{r}
+bform_treat_only <- bf(log10(dtp_42)|cens(censored_42) ~ alpha + beta1*weeks + beta2*gamma*log((exp((weeks-kappa)/gamma) + exp(-(weeks-kappa)/gamma))/(exp(kappa/gamma) + exp(-kappa/gamma))),
+                       alpha + beta1 + beta2 + kappa + gamma ~ 1 + (1|treat),
+                       nl = TRUE
+)
+
+get_prior(bform_treat_only, 
+          data = df_analysis_remox)
+
+priors <- c(prior(inv_gamma(0.0001, 0.0001), class = sigma),
+            prior(normal(0,0.0001), nlpar = "alpha", class = b),
+            prior(normal(0,0.0001), nlpar = "beta1", class = b),
+            prior(normal(0,0.0001), nlpar = "beta2", class = b),
+            prior(uniform(2,11), nlpar = "kappa", class = b, lb = 2, ub = 11),
+            prior(uniform(0.1,2), nlpar = "gamma", class = b, lb = 0.1, ub = 2),
+            prior(uniform(0.01,30), nlpar = "kappa", class = "sd"),
+            prior(uniform(0.01,5), nlpar = "gamma", class = "sd"))
+
+stancode_attempt_1 <- make_stancode(bform_treat_only,
+                           prior = priors,
+                           data = df_analysis_remox)
+
+t1 <- brms::brm(formula = bform_treat_only,
+                data = df_analysis_remox,
+                prior = priors,
+                cores = 4,
+                chains = 4, 
+                warmup = 1000,
+                iter = 2000)
+```
+                prior class      coef    group resp dpar nlpar lb ub       source
+ student_t(3, 0, 2.5) sigma                                     0         default  // prior on sigma^2_{epsilon_j} ? change to dgamma(0.0001, 0.0001)
+               (flat)     b                              alpha            default  // 
+               (flat)     b Intercept                    alpha       (vectorized)
+ student_t(3, 0, 2.5)    sd                              alpha  0         default
+ student_t(3, 0, 2.5)    sd              treat           alpha  0    (vectorized)
+ student_t(3, 0, 2.5)    sd Intercept    treat           alpha  0    (vectorized)
+ student_t(3, 0, 2.5)    sd           trial_no           alpha  0    (vectorized)
+ student_t(3, 0, 2.5)    sd Intercept trial_no           alpha  0    (vectorized)
+               (flat)     b                              beta1            default
+               (flat)     b Intercept                    beta1       (vectorized)
+ student_t(3, 0, 2.5)    sd                              beta1  0         default
+ student_t(3, 0, 2.5)    sd              treat           beta1  0    (vectorized)
+ student_t(3, 0, 2.5)    sd Intercept    treat           beta1  0    (vectorized)
+ student_t(3, 0, 2.5)    sd           trial_no           beta1  0    (vectorized)
+ student_t(3, 0, 2.5)    sd Intercept trial_no           beta1  0    (vectorized)
+               (flat)     b                              beta2            default
+               (flat)     b Intercept                    beta2       (vectorized)
+ student_t(3, 0, 2.5)    sd                              beta2  0         default
+ student_t(3, 0, 2.5)    sd              treat           beta2  0    (vectorized)
+ student_t(3, 0, 2.5)    sd Intercept    treat           beta2  0    (vectorized)
+ student_t(3, 0, 2.5)    sd           trial_no           beta2  0    (vectorized)
+ student_t(3, 0, 2.5)    sd Intercept trial_no           beta2  0    (vectorized)
+               (flat)     b                              gamma            default
+               (flat)     b Intercept                    gamma       (vectorized)
+ student_t(3, 0, 2.5)    sd                              gamma  0         default
+ student_t(3, 0, 2.5)    sd              treat           gamma  0    (vectorized)
+ student_t(3, 0, 2.5)    sd Intercept    treat           gamma  0    (vectorized)
+               (flat)     b                              kappa            default
+               (flat)     b Intercept                    kappa       (vectorized)
+ student_t(3, 0, 2.5)    sd                              kappa  0         default
+ student_t(3, 0, 2.5)    sd              treat           kappa  0    (vectorized)
+ student_t(3, 0, 2.5)    sd Intercept    treat           kappa  0    (vectorized)
+```
+
+```{r}
+bform <- bf(log10(dtp_42)|cens(censored_42) ~ mu[1] + mu[2]*weeks + mu[3]*gamma*log((exp((weeks-kappa)/gamma) + exp(-(weeks-kappa)/gamma))/(exp(kappa/gamma) + exp(-kappa/gamma))),
+             mu ~ 1 + (1|treat + trial_no),
+             gamma ~ 1 + (1|treat), # burger and schall specify these at the level of treatment for computational reasons
+             kappa ~ 1 + (1|treat),
+            nl = TRUE
+)
+make_stancode(bform,
+              data = df_analysis_remox)
+```
+
+## Divergent Transitions
+
+From 13.4 *Statistical Rethinking*:
+
+> There are two easy tricks for reducing the impact of divergent transitions. The first is to tune the simulation so that it doesn't overshoot the valley wall. This means doing more warmup with a higher target acceptance rate, Stan's `adapt_delta`. But for many models, you can never tune the sampler enough to remove the divergent transitions. The second trick is to write the statistical model in a new way, to reparameterize it...
+
+Let's start with the first. The `adapt_delta` is currently set at 0.99. 
+
+```{r}
+m_t1 <- brm(bf(log10(dtp_42) | cens(censored_42) ~ alpha + beta1*weeks + beta2*gamma*log((exp((weeks-kappa)/gamma) + exp(-(weeks-kappa)/gamma))/(exp(kappa/gamma) + exp(-kappa/gamma))),
+                              alpha + beta1 + beta2 + kappa + gamma ~ 1 + (1|patient.id + Treatm_arm), #specifying individual-level and regimen-level effects
+                              nl = TRUE), # specify non-linear
+                           family = gaussian(),
+                           init = 0, # Starting here 
+                           data = df_analysis_mams,
+                           backend = "cmdstanr",
+                           normalize = FALSE,
+                           prior = c(prior(normal(0,4), nlpar = "alpha"), 
+                                     prior(normal(0,4), nlpar = "beta1"),
+                                     prior(normal(0,4), nlpar = "beta2"),
+                                     set_prior("uniform(2,11)", lb = 2, ub = 11, nlpar = "kappa"), # from Burger + Schall
+                                     set_prior("uniform(0.1,2)", lb = 0.1, ub = 2, nlpar = "gamma")), # from Burger + Schall
+                           chains = 1,
+                           save_pars = save_pars(group = FALSE),
+                           control = list(adapt_delta = 0.90),
+                           iter = 1000)
+```
+
+```
+Warning: 494 of 500 (99.0%) transitions ended with a divergence.
+```
+
+Transitions got worse...
+
+```{r}
+m_t1 <- brm(bf(log10(dtp_42) | cens(censored_42) ~ alpha + beta1*weeks + beta2*gamma*log((exp((weeks-kappa)/gamma) + exp(-(weeks-kappa)/gamma))/(exp(kappa/gamma) + exp(-kappa/gamma))),
+                              alpha + beta1 + beta2 + kappa + gamma ~ 1 + (1|patient.id + Treatm_arm), #specifying individual-level and regimen-level effects
+                              nl = TRUE), # specify non-linear
+                           family = gaussian(),
+                           init = 0, # Starting here 
+                           data = df_analysis_mams,
+                           backend = "cmdstanr",
+                           normalize = FALSE,
+                           prior = c(prior(normal(0,4), nlpar = "alpha"), 
+                                     prior(normal(0,4), nlpar = "beta1"),
+                                     prior(normal(0,4), nlpar = "beta2"),
+                                     set_prior("uniform(2,11)", lb = 2, ub = 11, nlpar = "kappa"), # from Burger + Schall
+                                     set_prior("uniform(0.1,2)", lb = 0.1, ub = 2, nlpar = "gamma")), # from Burger + Schall
+                           chains = 1,
+                           save_pars = save_pars(group = FALSE),
+                           control = list(adapt_delta = 0.999),
+                           iter = 1000)
+```
+
+```
+Warning: 463 of 500 (93.0%) transitions ended with a divergence.
+```
+
+Transitions got worse...
+
+## Reparameterizing
+
+```{r}
+# Initial kicks (https://solomonkurz.netlify.app/blog/2021-06-05-don-t-forget-your-inits/)
+set_inits <- function(seed = 1) {
+  set.seed(seed)
+  list(
+    Intercept = runif(n = 1, min = 0.01, max = 1),
+    sigma = runif(n = 1, min = 0.01, max = 1),
+    beta = runif(n = 1, min = 0.01, max = 1)
+  )
+}
+
+# NUTS configuration
+control <- list(
+  adapt_engaged = TRUE,
+  adapt_delta = 0.95, #increased from default of 0.8
+  stepsize = 0.05, # 0.05 default
+  max_treedepth = 15
+)
+
+m_new_linear <- brm(formula = log10(dtp_42) | cens(censored_42) ~ weeks + (1 + weeks | treat),
+                    data = df_analysis_remox,
+                    init = list(set_inits(seed = 0),
+                                set_inits(seed = 1)),
+                    # backend = "cmdstanr", # induces Metropolis proposal error message
+                    save_pars = save_pars(group = FALSE),
+                    chains = 2,
+                    iter = 1000,
+                    control = control)
+
+```
+
+
+```{r}
+# Setting up complex priors (?stanvar)
+bprior <- c(prior(multi_normal(M, V), nlpar = "mu"),
+            prior("uniform(2,11)", nlpar = "kappa"),
+            prior("uniform(0.1,2)", nlpar = "gamma"))
+stanvars <- stanvar(rep(0,3), "M", scode = "  vector[K] M;") +
+  stanvar(diag(3), "V", scode = "  matrix[K, K] V;")
+
+make_stancode(bf(log10(dtp_42) | cens(censored_42) ~ alpha + beta1*weeks + beta2*gamma*log((exp((weeks-kappa)/gamma) + exp(-(weeks-kappa)/gamma))/(exp(kappa/gamma) + exp(-kappa/gamma))),
+                 mu + gamma + kappa ~ 1,
+                 nl = TRUE),
+              data = df_analysis_mams,
+              prior = bprior,
+              stanvars = stanvars)
+
+
+
+m_new <- brms::brm(bf(log10(dtp_42) | cens(censored_42) ~ alpha + beta1*weeks + beta2*gamma*log((exp((weeks-kappa)/gamma) + exp(-(weeks-kappa)/gamma))/(exp(kappa/gamma) + exp(-kappa/gamma)))),
+                   
+)
+```
+
+## Model Constraints
+
+[https://discourse.mc-stan.org/t/model-constraint/6728/4](https://discourse.mc-stan.org/t/model-constraint/6728/4)
