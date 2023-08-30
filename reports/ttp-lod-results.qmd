@@ -958,18 +958,18 @@ For the REMoxTB and MAMS-TB data, point estimates in the 30-day models *decrease
 
 However, credible intervals (e.g., precision) remain either the same or *improve* in the 30-day models relative to the 42-day models. In the REMoxTB data, the CIs improve more than the point estimates shrink. This is also true for 3 out of 5 arms in the MAMS-TB data.
 
-<!-- # Sensitivity Analyses -->
+# Sensitivity Analyses
 
-<!-- ```{r} -->
-<!-- load(here("data", "model-generated", "2023-08-24_linear-mams-lod-42_sensitivity.RData")) -->
-<!-- load(here("data", "model-generated", "2023-08-24_linear-mams-lod-30_sensitivity.RData")) -->
-<!-- load(here("data", "model-generated", "2023-08-24_linear-mams-lod-25_sensitivity.RData")) -->
-<!-- load(here("data", "model-generated", "2023-08-24_linear-remox-lod-42_sensitivity.RData")) -->
-<!-- load(here("data", "model-generated", "2023-08-24_linear-remox-lod-30_sensitivity.RData")) -->
-<!-- load(here("data", "model-generated", "2023-08-24_linear-remox-lod-25_sensitivity.RData")) -->
-<!-- ``` -->
+```{r}
+load(here("data", "model-generated", "2023-08-24_linear-mams-lod-42_sensitivity.RData"))
+load(here("data", "model-generated", "2023-08-24_linear-mams-lod-30_sensitivity.RData"))
+load(here("data", "model-generated", "2023-08-24_linear-mams-lod-25_sensitivity.RData"))
+load(here("data", "model-generated", "2023-08-24_linear-remox-lod-42_sensitivity.RData"))
+load(here("data", "model-generated", "2023-08-24_linear-remox-lod-30_sensitivity.RData"))
+load(here("data", "model-generated", "2023-08-24_linear-remox-lod-25_sensitivity.RData"))
+```
 
-<<<<<<< HEAD
+
 ## MAMS-TB: Linear
 
 ```{r}
