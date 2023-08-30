@@ -130,51 +130,40 @@ t1 <- brms::brm(formula = bform_treat_only,
                 chains = 4, 
                 warmup = 1000,
                 iter = 2000)
-```
-                prior class      coef    group resp dpar nlpar lb ub       source
- student_t(3, 0, 2.5) sigma                                     0         default  // prior on sigma^2_{epsilon_j} ? change to dgamma(0.0001, 0.0001)
-               (flat)     b                              alpha            default  // 
-               (flat)     b Intercept                    alpha       (vectorized)
- student_t(3, 0, 2.5)    sd                              alpha  0         default
- student_t(3, 0, 2.5)    sd              treat           alpha  0    (vectorized)
- student_t(3, 0, 2.5)    sd Intercept    treat           alpha  0    (vectorized)
- student_t(3, 0, 2.5)    sd           trial_no           alpha  0    (vectorized)
- student_t(3, 0, 2.5)    sd Intercept trial_no           alpha  0    (vectorized)
-               (flat)     b                              beta1            default
-               (flat)     b Intercept                    beta1       (vectorized)
- student_t(3, 0, 2.5)    sd                              beta1  0         default
- student_t(3, 0, 2.5)    sd              treat           beta1  0    (vectorized)
- student_t(3, 0, 2.5)    sd Intercept    treat           beta1  0    (vectorized)
- student_t(3, 0, 2.5)    sd           trial_no           beta1  0    (vectorized)
- student_t(3, 0, 2.5)    sd Intercept trial_no           beta1  0    (vectorized)
-               (flat)     b                              beta2            default
-               (flat)     b Intercept                    beta2       (vectorized)
- student_t(3, 0, 2.5)    sd                              beta2  0         default
- student_t(3, 0, 2.5)    sd              treat           beta2  0    (vectorized)
- student_t(3, 0, 2.5)    sd Intercept    treat           beta2  0    (vectorized)
- student_t(3, 0, 2.5)    sd           trial_no           beta2  0    (vectorized)
- student_t(3, 0, 2.5)    sd Intercept trial_no           beta2  0    (vectorized)
-               (flat)     b                              gamma            default
-               (flat)     b Intercept                    gamma       (vectorized)
- student_t(3, 0, 2.5)    sd                              gamma  0         default
- student_t(3, 0, 2.5)    sd              treat           gamma  0    (vectorized)
- student_t(3, 0, 2.5)    sd Intercept    treat           gamma  0    (vectorized)
-               (flat)     b                              kappa            default
-               (flat)     b Intercept                    kappa       (vectorized)
- student_t(3, 0, 2.5)    sd                              kappa  0         default
- student_t(3, 0, 2.5)    sd              treat           kappa  0    (vectorized)
- student_t(3, 0, 2.5)    sd Intercept    treat           kappa  0    (vectorized)
+save(t1, file = here("data", "debugging", paste0(Sys.Date(),"_debugging-nonlinear-model-issues.RData")))
 ```
 
 ```{r}
-bform <- bf(log10(dtp_42)|cens(censored_42) ~ mu[1] + mu[2]*weeks + mu[3]*gamma*log((exp((weeks-kappa)/gamma) + exp(-(weeks-kappa)/gamma))/(exp(kappa/gamma) + exp(-kappa/gamma))),
-             mu ~ 1 + (1|treat + trial_no),
-             gamma ~ 1 + (1|treat), # burger and schall specify these at the level of treatment for computational reasons
-             kappa ~ 1 + (1|treat),
-            nl = TRUE
+bform_complex <- bf(log10(dtp_42)|cens(censored_42) ~ alpha + beta1*weeks + beta2*gamma*log((exp((weeks-kappa)/gamma) + exp(-(weeks-kappa)/gamma))/(exp(kappa/gamma) + exp(-kappa/gamma))),
+                    alpha + beta1 + beta2 ~ 1 + (1|treat + trial_no),
+                    kappa + gamma ~ 1 + (1|treat),
+                    nl = TRUE
 )
-make_stancode(bform,
-              data = df_analysis_remox)
+
+get_prior(bform_complex, 
+          data = df_analysis_remox)
+
+priors <- c(prior(inv_gamma(0.0001, 0.0001), class = sigma),
+            prior(normal(0,0.0001), nlpar = "alpha", class = b),
+            prior(normal(0,0.0001), nlpar = "beta1", class = b),
+            prior(normal(0,0.0001), nlpar = "beta2", class = b),
+            prior(uniform(2,11), nlpar = "kappa", class = b, lb = 2, ub = 11),
+            prior(uniform(0.1,2), nlpar = "gamma", class = b, lb = 0.1, ub = 2),
+            prior(uniform(0.01,30), nlpar = "kappa", class = "sd"),
+            prior(uniform(0.01,5), nlpar = "gamma", class = "sd"))
+
+stancode_attempt_1 <- make_stancode(bform_complex,
+                           prior = priors,
+                           data = df_analysis_remox)
+
+t2 <- brms::brm(formula = bform_complex,
+                data = df_analysis_remox,
+                prior = priors,
+                cores = 4,
+                chains = 4, 
+                warmup = 1000,
+                iter = 2000)
+save(t2, file = here("data", "debugging", paste0(Sys.Date(),"_debugging-nonlinear-model-issues_complex.RData")))
 ```
 
 ## Divergent Transitions
@@ -183,27 +172,21 @@ From 13.4 *Statistical Rethinking*:
 
 > There are two easy tricks for reducing the impact of divergent transitions. The first is to tune the simulation so that it doesn't overshoot the valley wall. This means doing more warmup with a higher target acceptance rate, Stan's `adapt_delta`. But for many models, you can never tune the sampler enough to remove the divergent transitions. The second trick is to write the statistical model in a new way, to reparameterize it...
 
-Let's start with the first. The `adapt_delta` is currently set at 0.99. 
+Let's start with the first. The `adapt_delta` is currently set at the default of 0.8. 
 
 ```{r}
-m_t1 <- brm(bf(log10(dtp_42) | cens(censored_42) ~ alpha + beta1*weeks + beta2*gamma*log((exp((weeks-kappa)/gamma) + exp(-(weeks-kappa)/gamma))/(exp(kappa/gamma) + exp(-kappa/gamma))),
-                              alpha + beta1 + beta2 + kappa + gamma ~ 1 + (1|patient.id + Treatm_arm), #specifying individual-level and regimen-level effects
-                              nl = TRUE), # specify non-linear
-                           family = gaussian(),
-                           init = 0, # Starting here 
-                           data = df_analysis_mams,
-                           backend = "cmdstanr",
-                           normalize = FALSE,
-                           prior = c(prior(normal(0,4), nlpar = "alpha"), 
-                                     prior(normal(0,4), nlpar = "beta1"),
-                                     prior(normal(0,4), nlpar = "beta2"),
-                                     set_prior("uniform(2,11)", lb = 2, ub = 11, nlpar = "kappa"), # from Burger + Schall
-                                     set_prior("uniform(0.1,2)", lb = 0.1, ub = 2, nlpar = "gamma")), # from Burger + Schall
-                           chains = 1,
-                           save_pars = save_pars(group = FALSE),
-                           control = list(adapt_delta = 0.90),
-                           iter = 1000)
+t3 <- brms::brm(formula = bform_complex,
+                data = df_analysis_remox,
+                prior = priors,
+                cores = 4,
+                chains = 4, 
+                adapt_delta = 0.99,
+                warmup = 1000,
+                iter = 2000)
+save(t3, file = here("data", "debugging", paste0(Sys.Date(),"_debugging-nonlinear-model-issues_complex_v2.RData")))
 ```
+
+# Appendix
 
 ```
 Warning: 494 of 500 (99.0%) transitions ended with a divergence.
