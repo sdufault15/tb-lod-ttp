@@ -651,7 +651,8 @@ t25 <- coef_mams_25 %>%
   gather() %>% 
   group_by(key) %>% 
   mode_hdi(value) %>% 
-  mutate_if(is.double, round, digits = 3) 
+  mutate_if(is.double, round, digits = 3) %>% 
+  mutate(lod = 25)
 
 coef_mams_30 <-
     coef(m_linear_mams_30, summary = F)$Treatm_arm %>% 
@@ -661,7 +662,8 @@ t30 <- coef_mams_30 %>%
   gather() %>% 
   group_by(key) %>% 
   mode_hdi(value) %>% 
-  mutate_if(is.double, round, digits = 3) 
+  mutate_if(is.double, round, digits = 3) %>% 
+  mutate(lod = 30)
 
 coef_mams_42 <-
     coef(m_linear_mams_42, summary = F)$Treatm_arm %>% 
@@ -672,6 +674,7 @@ coefs_mams <- coef_mams_42 %>%
   group_by(key) %>% 
   mode_hdi(value) %>% 
   mutate_if(is.double, round, digits = 3) %>% 
+  mutate(lod = 42) %>% 
   bind_rows(t30) %>% 
   bind_rows(t25) %>% 
   filter(str_detect(key, "weeks")) 
@@ -705,7 +708,8 @@ t30 <- coef_remox_30 %>%
   gather() %>% 
   group_by(key) %>% 
   mode_hdi(value) %>% 
-  mutate_if(is.double, round, digits = 3) 
+  mutate_if(is.double, round, digits = 3) %>% 
+  mutate(lod = 30)
 
 coef_remox_42 <-
     coef(m_linear_remox_42, summary = F)$treat %>% 
@@ -716,6 +720,7 @@ coefs_remox <- coef_remox_42 %>%
   group_by(key) %>% 
   mode_hdi(value) %>% 
   mutate_if(is.double, round, digits = 3) %>% 
+  mutate(lod = 42) %>% 
   bind_rows(t30) %>% 
   filter(str_detect(key, "weeks")) 
 
@@ -732,6 +737,41 @@ coefs_remox %>%
   pack_rows(group_label = "LOD = 30",
              start_row = 4,
              end_row = 6)
+```
+
+## Forest plot
+
+```{r}
+bind_rows(mutate(coefs_mams, Data = "MAMS-TB"), 
+          mutate(coefs_remox, Data = "REMoxTB")) %>% 
+  mutate(key = str_remove(key, pattern = ".weeks")) %>% 
+  mutate(key = str_remove(key, pattern = c("1. "))) %>%
+  mutate(key = str_remove(key, pattern = c("2. "))) %>%
+  mutate(key = str_remove(key, pattern = c("3. "))) %>%
+  mutate(`Censoring limit` = paste0(lod, " days")) %>% 
+  ggplot(aes(x = value, y = key, col = `Censoring limit`, shape = `Censoring limit`)) + 
+  facet_grid(rows = vars(Data), scales = "free_y", space = "free_y") + 
+  geom_errorbarh(aes(xmin = .lower, xmax = .upper),
+                 position = position_dodge(width = 0.35),
+                 height = 0.3) + 
+  geom_point(position = position_dodge(width = 0.35),
+             size = 2) +
+  scale_color_manual(values = ucsf_col_pal[c(2,4,8)]) + 
+  scale_x_continuous(breaks = seq(0.06,0.16,by = 0.02),
+                     labels = seq(0.06,0.16,by = 0.02)) + 
+  coord_cartesian(xlim = c(0.06,0.16)) + 
+  theme(axis.title.y = element_blank(),
+        legend.position = c(0.85,0.15)) + 
+  labs(x = "Estimate (95% Credible Interval)")
+```
+
+```{r}
+#| eval: false
+ggsave(filename = here("graphs", "publication", "forest-plot.tiff"),
+       device = "tiff",
+       units = "in",
+       height = 5.5,
+       width = 9)
 ```
 
 ## Linear changes in estimates
@@ -982,7 +1022,8 @@ t25 <- coef_mams_25s %>%
   gather() %>%
   group_by(key) %>%
   mode_hdi(value) %>%
-  mutate_if(is.double, round, digits = 3)
+  mutate_if(is.double, round, digits = 3) %>% 
+  mutate(lod = 25)
 
 coef_mams_30s <-
     coef(m_linear_mams_30s, summary = F)$Treatm_arm %>%
@@ -992,7 +1033,8 @@ t30 <- coef_mams_30s %>%
   gather() %>%
   group_by(key) %>%
   mode_hdi(value) %>%
-  mutate_if(is.double, round, digits = 3)
+  mutate_if(is.double, round, digits = 3) %>% 
+  mutate(lod = 30)
 
 coef_mams_42s <-
     coef(m_linear_mams_42s, summary = F)$Treatm_arm %>%
@@ -1003,9 +1045,10 @@ coefs_mams <- coef_mams_42s %>%
   group_by(key) %>%
   mode_hdi(value) %>%
   mutate_if(is.double, round, digits = 3) %>%
+  mutate(lod = 42) %>% 
   bind_rows(t30) %>%
   bind_rows(t25) %>%
-  filter(str_detect(key, "weeks"))
+  filter(str_detect(key, "weeks")) 
 
 coefs_mams %>%
   transmute(key, value, .lower, .upper, `CI width` = abs(.upper - .lower), .point, .interval) %>%
@@ -1036,7 +1079,8 @@ t25 <- coef_remox_25s %>%
   gather() %>%
   group_by(key) %>%
   mode_hdi(value) %>%
-  mutate_if(is.double, round, digits = 3)
+  mutate_if(is.double, round, digits = 3) %>% 
+  mutate(lod = 25)
 
 coef_remox_30s <-
     coef(m_linear_remox_30s, summary = F)$treat %>%
@@ -1046,7 +1090,8 @@ t30 <- coef_remox_30s %>%
   gather() %>%
   group_by(key) %>%
   mode_hdi(value) %>%
-  mutate_if(is.double, round, digits = 3)
+  mutate_if(is.double, round, digits = 3) %>% 
+  mutate(lod = 30)
 
 coef_remox_42s <-
     coef(m_linear_remox_42s, summary = F)$treat %>%
@@ -1057,6 +1102,7 @@ coefs_remox <- coef_remox_42s %>%
   group_by(key) %>%
   mode_hdi(value) %>%
   mutate_if(is.double, round, digits = 3) %>%
+  mutate(lod = 42) %>% 
   bind_rows(t30) %>%
   bind_rows(t25) %>%
   filter(str_detect(key, "weeks"))
@@ -1077,6 +1123,42 @@ coefs_remox %>%
   pack_rows(group_label = "LOD = 25",
              start_row = 7,
              end_row = 9)
+```
+
+## Forest plot
+
+```{r}
+bind_rows(mutate(coefs_mams, Data = "MAMS-TB"), 
+          mutate(coefs_remox, Data = "REMoxTB")) %>% 
+  mutate(key = str_remove(key, pattern = ".weeks")) %>% 
+  mutate(key = str_remove(key, pattern = c("1. "))) %>%
+  mutate(key = str_remove(key, pattern = c("2. "))) %>%
+  mutate(key = str_remove(key, pattern = c("3. "))) %>%
+  mutate(`Censoring limit` = paste0(lod, " days")) %>% 
+  ggplot(aes(x = value, y = key, col = `Censoring limit`, shape = `Censoring limit`)) + 
+  facet_grid(rows = vars(Data), scales = "free_y", space = "free_y") + 
+  geom_errorbarh(aes(xmin = .lower, xmax = .upper),
+                 position = position_dodge(width = 0.35),
+                 height = 0.3) + 
+  geom_point(position = position_dodge(width = 0.35),
+             size = 2) +
+  scale_color_manual(values = ucsf_col_pal[c(2,4,8)]) + 
+  scale_x_continuous(breaks = seq(0.06,0.16,by = 0.02),
+                     labels = seq(0.06,0.16,by = 0.02)) + 
+  coord_cartesian(xlim = c(0.06,0.16)) + 
+  theme(axis.title.y = element_blank(),
+        legend.position = c(0.85,0.15)) + 
+  labs(x = "Estimate (95% Credible Interval)")
+```
+
+```{r}
+#| eval: false
+
+ggsave(filename = here("graphs", "publication", "forest-plot_sensitivity.tiff"),
+       device = "tiff",
+       units = "in",
+       height = 5.5,
+       width = 9)
 ```
 
 # Model Convergence - MAMS-TB
