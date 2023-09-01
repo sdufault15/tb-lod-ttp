@@ -774,6 +774,16 @@ ggsave(filename = here("graphs", "publication", "forest-plot.tiff"),
        width = 9)
 ```
 
+```{r}
+#| eval: false
+library(brms)
+conditions <- data.frame(Treatm_arm = unique(df_analysis_mams$Treatm_arm))
+p1 <- conditional_effects(m_linear_mams_25, conditions = conditions,
+                          re_formula = NULL, method = "predict", robust = TRUE)
+
+plot(p1)
+```
+
 ## Linear changes in estimates
 
 ```{r}
