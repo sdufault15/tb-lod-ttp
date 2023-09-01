@@ -962,12 +962,12 @@ However, credible intervals (e.g., precision) remain either the same or *improve
 
 ```{r}
 # Update with new model objects with saved group parameter estimates
-# load(here("data", "model-generated", "2023-08-24_linear-mams-lod-42_sensitivity.RData"))
-# load(here("data", "model-generated", "2023-08-24_linear-mams-lod-30_sensitivity.RData"))
-# load(here("data", "model-generated", "2023-08-24_linear-mams-lod-25_sensitivity.RData"))
-# load(here("data", "model-generated", "2023-08-24_linear-remox-lod-42_sensitivity.RData"))
-# load(here("data", "model-generated", "2023-08-24_linear-remox-lod-30_sensitivity.RData"))
-# load(here("data", "model-generated", "2023-08-24_linear-remox-lod-25_sensitivity.RData"))
+load(here("data", "model-generated", "2023-08-31_linear-mams-lod-42_sensitivity.RData"))
+load(here("data", "model-generated", "2023-08-31_linear-mams-lod-30_sensitivity.RData"))
+load(here("data", "model-generated", "2023-08-31_linear-mams-lod-25_sensitivity.RData"))
+load(here("data", "model-generated", "2023-08-31_linear-remox-lod-42_sensitivity.RData"))
+load(here("data", "model-generated", "2023-08-31_linear-remox-lod-30_sensitivity.RData"))
+load(here("data", "model-generated", "2023-08-31_linear-remox-lod-25_sensitivity.RData"))
 ```
 
 
@@ -975,11 +975,8 @@ However, credible intervals (e.g., precision) remain either the same or *improve
 
 ```{r}
 coef_mams_25s <-
-    brms::coef(m_linear_mams_25s, summary = F)$Treatm_arm %>% 
+    coef(m_linear_mams_25s, summary = F)$Treatm_arm %>% 
     as_tibble()
-    
-coef_mams_25s <-
-    as_tibble(coef(m_linear_mams_25, summary = F)$Treatm_arm)
 
 t25 <- coef_mams_25s %>%
   gather() %>%
@@ -1026,6 +1023,60 @@ coefs_mams %>%
   pack_rows(group_label = "LOD = 25",
              start_row = 11,
              end_row = 15)
+```
+
+## REMoxTB: Linear
+
+```{r}
+coef_remox_25s <-
+    coef(m_linear_remox_25s, summary = F)$treat %>% 
+    as_tibble()
+
+t25 <- coef_remox_25s %>%
+  gather() %>%
+  group_by(key) %>%
+  mode_hdi(value) %>%
+  mutate_if(is.double, round, digits = 3)
+
+coef_remox_30s <-
+    coef(m_linear_remox_30s, summary = F)$treat %>%
+    as_tibble()
+
+t30 <- coef_remox_30s %>%
+  gather() %>%
+  group_by(key) %>%
+  mode_hdi(value) %>%
+  mutate_if(is.double, round, digits = 3)
+
+coef_remox_42s <-
+    coef(m_linear_remox_42s, summary = F)$treat %>%
+    as_tibble()
+
+coefs_remox <- coef_remox_42s %>%
+  gather() %>%
+  group_by(key) %>%
+  mode_hdi(value) %>%
+  mutate_if(is.double, round, digits = 3) %>%
+  bind_rows(t30) %>%
+  bind_rows(t25) %>%
+  filter(str_detect(key, "weeks"))
+
+coefs_remox %>%
+  transmute(key, value, .lower, .upper, `CI width` = abs(.upper - .lower), .point, .interval) %>%
+  rename(" " = key, "Estimate" = value, "CI.l" = .lower, "CI.u" = .upper, #"CI width" = .width,
+         "Point Estimation" = .point, "CI Estimation" = .interval) %>%
+  kable(digits = 3,
+        caption = "(REMoxTB) Posterior group-level estimates of slope from the 30- and 42-day models (95% Credible Intervals).") %>%
+  kable_styling(font_size = 16) %>%
+  pack_rows(group_label = "LOD = 42",
+             start_row = 1,
+             end_row = 3) %>%
+  pack_rows(group_label = "LOD = 30",
+             start_row = 4,
+             end_row = 6) %>%
+  pack_rows(group_label = "LOD = 25",
+             start_row = 7,
+             end_row = 9)
 ```
 
 # Model Convergence - MAMS-TB
