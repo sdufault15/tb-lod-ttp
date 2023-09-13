@@ -816,7 +816,7 @@ coefs_mams %>%
   kable_styling(font_size = 20)
 
 coefs_remox %>% 
-  mutate(lod = c(rep(42, 3), rep(30,3))) %>% 
+  # mutate(lod = c(rep(42, 3), rep(30,3), rep(25,3))) %>% 
   mutate(CI.width = abs(.upper - .lower)) %>% 
   group_by(key) %>% 
   summarise(point.estimate.ratio = value[lod == 30]/value[lod == 42],
@@ -1296,19 +1296,15 @@ plot(m_linear_mams_42, ask = FALSE)
 
 ## MAMS-TB: Nonlinear 25-day {.scrollable}
 
-<!-- ```{r} -->
-
-<!-- m_nonlinear_mams_25 -->
-
-<!-- ``` -->
+```{r}
+m_nonlinear_mams_25
+```
 
 ## MAMS-TB: Nonlinear 25-day posterior {.scrollable}
 
-<!-- ```{r} -->
-
-<!-- plot(m_nonlinear_mams_25, ask = FALSE) -->
-
-<!-- ``` -->
+```{r}
+plot(m_nonlinear_mams_25, ask = FALSE)
+```
 
 ## MAMS-TB: Nonlinear 30-day {.scrollable}
 
