@@ -53,7 +53,7 @@ m_orig <- brm(bf(log10(dtp_42) | cens(censored_42) ~ alpha + beta1*weeks + beta2
 
 When running this code, there are many warnings that occur, including:
 
-```
+```         
 Chain 1 Informational Message: The current Metropolis proposal is about to be rejected because of the following issue:
 Chain 1 Exception: normal_lpdf: Location parameter is -inf, but must be finite! (in '/var/folders/x6/c01vlqld2yg0j260p2kwcbpm0000gp/T/RtmpRHtX9E/model-7ad7544bb422.stan', line 194, column 8 to column 52)
 Chain 1 If this warning occurs sporadically, such as for highly constrained variable types like covariance matrices, then the sampler is fine,
@@ -67,7 +67,7 @@ Warning: 88 of 500 (18.0%) transitions hit the maximum treedepth limit of 10.
 See https://mc-stan.org/misc/warnings for details.
 ```
 
-We have now traced back the majority of the Chain specific Metropolis warnings to the nature of `cmdstanr`. These warnings disappear when this backend is not used, but I am not sure whether they are important or not. 
+We have now traced back the majority of the Chain specific Metropolis warnings to the nature of `cmdstanr`. These warnings disappear when this backend is not used, but I am not sure whether they are important or not.
 
 ```{r}
 #| fig-height: 10
@@ -77,11 +77,11 @@ summary(m_orig)
 plot(m_orig, ask = FALSE)
 ```
 
-Clearly, this model is a mess, and it's not just a result of limited sampling of the posterior. 
+Clearly, this model is a mess, and it's not just a result of limited sampling of the posterior.
 
 ## Starting Fresh
 
-We didn't quite follow Burger and Schall exactly. Here, I want to test whether I can implement an equivalent model to theirs on the REMoxTB data... priors and all... and see if that helps with the issues we're seeing. 
+We didn't quite follow Burger and Schall exactly. Here, I want to test whether I can implement an equivalent model to theirs on the REMoxTB data... priors and all... and see if that helps with the issues we're seeing.
 
 ```{r}
 #| echo: TRUE
@@ -101,6 +101,7 @@ get_prior(bform, data = df_analysis_remox)
 ```
 
 Let's go even simpler.
+
 ```{r}
 bform_treat_only <- bf(log10(dtp_42)|cens(censored_42) ~ alpha + beta1*weeks + beta2*gamma*log((exp((weeks-kappa)/gamma) + exp(-(weeks-kappa)/gamma))/(exp(kappa/gamma) + exp(-kappa/gamma))),
                        alpha + beta1 + beta2 + kappa + gamma ~ 1 + (1|treat),
@@ -172,7 +173,7 @@ From 13.4 *Statistical Rethinking*:
 
 > There are two easy tricks for reducing the impact of divergent transitions. The first is to tune the simulation so that it doesn't overshoot the valley wall. This means doing more warmup with a higher target acceptance rate, Stan's `adapt_delta`. But for many models, you can never tune the sampler enough to remove the divergent transitions. The second trick is to write the statistical model in a new way, to reparameterize it...
 
-Let's start with the first. The `adapt_delta` is currently set at the default of 0.8. 
+Let's start with the first. The `adapt_delta` is currently set at the default of 0.8.
 
 ```{r}
 t3 <- brms::brm(formula = bform_complex,
@@ -188,7 +189,7 @@ save(t3, file = here("data", "debugging", paste0(Sys.Date(),"_debugging-nonlinea
 
 # Appendix
 
-```
+```         
 Warning: 494 of 500 (99.0%) transitions ended with a divergence.
 ```
 
@@ -214,7 +215,7 @@ m_t1 <- brm(bf(log10(dtp_42) | cens(censored_42) ~ alpha + beta1*weeks + beta2*g
                            iter = 1000)
 ```
 
-```
+```         
 Warning: 463 of 500 (93.0%) transitions ended with a divergence.
 ```
 
@@ -253,7 +254,6 @@ m_new_linear <- brm(formula = log10(dtp_42) | cens(censored_42) ~ weeks + (1 + w
 
 ```
 
-
 ```{r}
 # Setting up complex priors (?stanvar)
 bprior <- c(prior(multi_normal(M, V), nlpar = "mu"),
@@ -278,4 +278,4 @@ m_new <- brms::brm(bf(log10(dtp_42) | cens(censored_42) ~ alpha + beta1*weeks + 
 
 ## Model Constraints
 
-[https://discourse.mc-stan.org/t/model-constraint/6728/4](https://discourse.mc-stan.org/t/model-constraint/6728/4)
+<https://discourse.mc-stan.org/t/model-constraint/6728/4>
