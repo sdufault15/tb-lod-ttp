@@ -21,7 +21,6 @@ m_linear_mams_42 <- brm(log10(dtp_42) | cens(censored_42) ~ weeks + (1 + weeks |
                         control = list(adapt_delta = 0.99),
                         iter = 2000,
                         backend = "cmdstanr", # attempt to improve convergence speed
-                        save_pars=save_pars(group=FALSE), # attempt to decrease file size
                         normalize = FALSE, # attempt to improve speed of convergence (https://discourse.mc-stan.org/t/faster-convergence/21532)
                         prior = prior(normal(0,4), class = "Intercept"))
 save(m_linear_mams_42,
@@ -36,7 +35,6 @@ m_linear_mams_30 <- brm(log10(dtp_30) | cens(censored_30) ~ weeks + (1 + weeks |
                         control = list(adapt_delta = 0.99),
                         iter = 2000,
                         backend = "cmdstanr", # attempt to improve convergence speed
-                        save_pars=save_pars(group=FALSE), # attempt to decrease file size
                         normalize = FALSE, # attempt to improve speed of convergence (https://discourse.mc-stan.org/t/faster-convergence/21532)
                         prior = prior(normal(0,4), class = "Intercept"))
 
@@ -54,7 +52,6 @@ m_linear_mams_25 <- brm(log10(dtp_25) | cens(censored_25) ~ weeks + (1 + weeks |
                         control = list(adapt_delta = 0.99),
                         iter = 2000,
                         backend = "cmdstanr", # attempt to improve convergence speed
-                        save_pars=save_pars(group=FALSE), # attempt to decrease file size
                         normalize = FALSE, # attempt to improve speed of convergence (https://discourse.mc-stan.org/t/faster-convergence/21532)
                         prior = prior(normal(0,4), class = "Intercept"))
 
@@ -67,7 +64,7 @@ beepr::beep()
 ###########################
 # Run the models on REMox-TB
 ###########################
-load(here("data", "cleaned-data", "2023-07-31_remoxtb-clean.RData"))
+load(here("data", "cleaned-data", "2023-08-15_remoxtb-clean.RData"))
 # Model took 4.4 hours to run locally
 m_linear_remox_42 <- brm(log10(dtp_42) | cens(censored_42) ~ weeks + (1 + weeks | trial_no + treat), # run the model
                          data = df_analysis_remox,
@@ -76,7 +73,6 @@ m_linear_remox_42 <- brm(log10(dtp_42) | cens(censored_42) ~ weeks + (1 + weeks 
                          control = list(adapt_delta = 0.99),
                          iter = 4000,
                          backend = "cmdstanr", # attempt to improve convergence speed
-                         save_pars=save_pars(group=FALSE), # attempt to decrease file size
                          normalize = FALSE, # attempt to improve speed of convergence (https://discourse.mc-stan.org/t/faster-convergence/21532)
                          prior = prior(normal(0,4), class = "Intercept"))
 save(m_linear_remox_42,
@@ -92,11 +88,23 @@ m_linear_remox_30 <- brm(log10(dtp_30) | cens(censored_30) ~ weeks + (1 + weeks 
                          control = list(adapt_delta = 0.99),
                          iter = 4000,
                          backend = "cmdstanr", # attempt to improve convergence speed
-                         save_pars=save_pars(group=FALSE), # attempt to decrease file size
                          normalize = FALSE, # attempt to improve speed of convergence (https://discourse.mc-stan.org/t/faster-convergence/21532)
                          prior = prior(normal(0,4), class = "Intercept"))
 
 save(m_linear_remox_30,
      file = here("data", "model-generated", 
                  paste0(Sys.Date(), "_linear-remox-lod-30.RData")))
-beepr::beep()
+
+m_linear_remox_25 <- brm(log10(dtp_25) | cens(censored_25) ~ weeks + (1 + weeks | trial_no + treat), # run the model
+                         data = df_analysis_remox,
+                         inits = 0,
+                         chains = 4,
+                         control = list(adapt_delta = 0.99),
+                         iter = 4000,
+                         backend = "cmdstanr", # attempt to improve convergence speed
+                         normalize = FALSE, # attempt to improve speed of convergence (https://discourse.mc-stan.org/t/faster-convergence/21532)
+                         prior = prior(normal(0,4), class = "Intercept"))
+
+save(m_linear_remox_25,
+     file = here("data", "model-generated", 
+                 paste0(Sys.Date(), "_linear-remox-lod-25.RData")))

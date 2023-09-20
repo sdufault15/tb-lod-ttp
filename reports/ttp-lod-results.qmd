@@ -595,6 +595,7 @@ load(here("data", "model-generated", "2023-07-20_linear-mams-lod-30.RData"))
 load(here("data", "model-generated", "2023-08-15_linear-mams-lod-25.RData"))
 load(here("data", "model-generated", "2023-07-20_linear-remox-lod-42.RData"))
 load(here("data", "model-generated", "2023-07-31_linear-remox-lod-30.RData"))
+load(here("data", "model-generated", "2023-09-01_linear-remox-lod-25.RData"))
 ```
 
 ```{r}
@@ -651,7 +652,8 @@ t25 <- coef_mams_25 %>%
   gather() %>% 
   group_by(key) %>% 
   mode_hdi(value) %>% 
-  mutate_if(is.double, round, digits = 3) 
+  mutate_if(is.double, round, digits = 3) %>% 
+  mutate(lod = 25)
 
 coef_mams_30 <-
     coef(m_linear_mams_30, summary = F)$Treatm_arm %>% 
@@ -661,7 +663,8 @@ t30 <- coef_mams_30 %>%
   gather() %>% 
   group_by(key) %>% 
   mode_hdi(value) %>% 
-  mutate_if(is.double, round, digits = 3) 
+  mutate_if(is.double, round, digits = 3) %>% 
+  mutate(lod = 30)
 
 coef_mams_42 <-
     coef(m_linear_mams_42, summary = F)$Treatm_arm %>% 
@@ -672,6 +675,7 @@ coefs_mams <- coef_mams_42 %>%
   group_by(key) %>% 
   mode_hdi(value) %>% 
   mutate_if(is.double, round, digits = 3) %>% 
+  mutate(lod = 42) %>% 
   bind_rows(t30) %>% 
   bind_rows(t25) %>% 
   filter(str_detect(key, "weeks")) 
@@ -697,6 +701,17 @@ coefs_mams %>%
 ## REMoxTB: Linear (treatment level)
 
 ```{r}
+coef_remox_25 <-
+    coef(m_linear_remox_25, summary = F)$treat %>% 
+    as_tibble()
+
+t25 <- coef_remox_25 %>% 
+  gather() %>% 
+  group_by(key) %>% 
+  mode_hdi(value) %>% 
+  mutate_if(is.double, round, digits = 3) %>% 
+  mutate(lod = 25)
+
 coef_remox_30 <-
     coef(m_linear_remox_30, summary = F)$treat %>% 
     as_tibble()
@@ -705,7 +720,8 @@ t30 <- coef_remox_30 %>%
   gather() %>% 
   group_by(key) %>% 
   mode_hdi(value) %>% 
-  mutate_if(is.double, round, digits = 3) 
+  mutate_if(is.double, round, digits = 3) %>% 
+  mutate(lod = 30)
 
 coef_remox_42 <-
     coef(m_linear_remox_42, summary = F)$treat %>% 
@@ -716,7 +732,9 @@ coefs_remox <- coef_remox_42 %>%
   group_by(key) %>% 
   mode_hdi(value) %>% 
   mutate_if(is.double, round, digits = 3) %>% 
+  mutate(lod = 42) %>% 
   bind_rows(t30) %>% 
+  bind_rows(t25) %>% 
   filter(str_detect(key, "weeks")) 
 
 coefs_remox %>% 
@@ -731,7 +749,55 @@ coefs_remox %>%
              end_row = 3) %>% 
   pack_rows(group_label = "LOD = 30",
              start_row = 4,
-             end_row = 6)
+             end_row = 6) %>% 
+  pack_rows(group_label = "LOD = 25",
+             start_row = 7,
+             end_row = 9)
+```
+
+## Forest plot
+
+```{r}
+bind_rows(mutate(coefs_mams, Data = "MAMS-TB"), 
+          mutate(coefs_remox, Data = "REMoxTB")) %>% 
+  mutate(key = str_remove(key, pattern = ".weeks")) %>% 
+  mutate(key = str_remove(key, pattern = c("1. "))) %>%
+  mutate(key = str_remove(key, pattern = c("2. "))) %>%
+  mutate(key = str_remove(key, pattern = c("3. "))) %>%
+  mutate(`Censoring limit` = paste0(lod, " days")) %>% 
+  ggplot(aes(x = value, y = key, col = `Censoring limit`, shape = `Censoring limit`)) + 
+  facet_grid(rows = vars(Data), scales = "free_y", space = "free_y") + 
+  geom_errorbarh(aes(xmin = .lower, xmax = .upper),
+                 position = position_dodge(width = 0.35),
+                 height = 0.3) + 
+  geom_point(position = position_dodge(width = 0.35),
+             size = 2) +
+  scale_color_manual(values = ucsf_col_pal[c(2,4,8)]) + 
+  scale_x_continuous(breaks = seq(0.06,0.16,by = 0.02),
+                     labels = seq(0.06,0.16,by = 0.02)) + 
+  coord_cartesian(xlim = c(0.06,0.16)) + 
+  theme(axis.title.y = element_blank(),
+        legend.position = c(0.85,0.15)) + 
+  labs(x = "Estimate (95% Credible Interval)")
+```
+
+```{r}
+#| eval: false
+ggsave(filename = here("graphs", "publication", "forest-plot.tiff"),
+       device = "tiff",
+       units = "in",
+       height = 4.5,
+       width = 9)
+```
+
+```{r}
+#| eval: false
+library(brms)
+conditions <- data.frame(Treatm_arm = unique(df_analysis_mams$Treatm_arm))
+p1 <- conditional_effects(m_linear_mams_25, conditions = conditions,
+                          re_formula = NULL, method = "predict", robust = TRUE)
+
+plot(p1)
 ```
 
 ## Linear changes in estimates
@@ -869,7 +935,7 @@ coefs_remox_nl %>%
 
 ```{r}
 mams_diff <- coefs_mams %>% 
-  mutate(lod = c(rep(42, 5), rep(30,5), rep(25,5))) %>% 
+  # mutate(lod = c(rep(42, 5), rep(30,5), rep(25,5))) %>% 
   mutate(CI.width = abs(.upper - .lower)) %>% 
   group_by(key) %>% 
   # Comparing each lod against 42
@@ -893,7 +959,7 @@ mams_diff_nl <- coefs_mams_nl %>%
   mutate(data = "MAMS-TB (nl)")
 
 remox_diff <- coefs_remox %>% 
-  mutate(lod = c(rep(42, 3), rep(30,3))) %>% 
+  # mutate(lod = c(rep(42, 3), rep(30,3))) %>% 
   mutate(CI.width = abs(.upper - .lower)) %>% 
   group_by(key) %>% 
   # Comparing each lod against 42
@@ -921,25 +987,26 @@ bind_rows(rename(mams_diff, regimen = key),
           # remox_diff_nl
           ) %>% 
   mutate(`Censoring Limit (days)` = as.factor(lod),
-         `Dataset + Model` = data) %>% 
+         `Dataset` = # + Model` = 
+           data) %>% 
   ggplot(aes(x = point.estimate.ratio, y = CI.width.ratio)) +
   # facet_wrap(~coefficient) +
   geom_hline(yintercept = 1, col = "black") + 
   geom_vline(xintercept = 1, col = "black") + 
   geom_point(alpha = 0.8,
-             size = 1.8,
-             aes(col = `Dataset + Model`,
+             size = 3,
+             aes(col = `Dataset`,# + Model`,
                  shape = `Censoring Limit (days)`)) +
-  scale_shape_manual(values = c(3,4)) + 
-  coord_fixed(ylim = c(0.25,4.5),
-              xlim = c(0.25,4.5)) +
-  scale_x_log10(breaks = c(0.1,0.5,1,2,4,6)) + 
-  scale_y_log10(breaks = c(0.1,0.5,1,2,4,6)) +
+  scale_shape_manual(values = c(16,4)) + 
+  coord_fixed(ylim = c(0.7,1/0.7),
+              xlim = c(0.7,1/0.7)) +
+  scale_x_log10(breaks = c(0.1,0.6,0.7,0.8,0.9,1,1.1,1.2,1.3,1.4,1.5,2,4,6)) + 
+  scale_y_log10(breaks = c(0.1,0.6,0.7,0.8,0.9,1,1.1,1.2,1.3,1.4,1.5,2,4,6)) +
   scale_color_manual(values = ucsf_col_pal[c(2,8,9)]) + 
   labs(x = TeX("$\\hat{\\theta}_{j, \\cdot} / \\hat{\\theta}_{j, 42}$"),
-       y = "95% CI width / 95% CI width (42 day)") +
+       y = "Ratio of 95% CI width relative to 42-day 95% CI width") +
   theme(axis.line = element_blank(),
-        legend.position = "right")
+        legend.position = c(0.8,0.2))
 ```
 
 ```{r}
@@ -981,7 +1048,8 @@ t25 <- coef_mams_25s %>%
   gather() %>%
   group_by(key) %>%
   mode_hdi(value) %>%
-  mutate_if(is.double, round, digits = 3)
+  mutate_if(is.double, round, digits = 3) %>% 
+  mutate(lod = 25)
 
 coef_mams_30s <-
     coef(m_linear_mams_30s, summary = F)$Treatm_arm %>%
@@ -991,7 +1059,8 @@ t30 <- coef_mams_30s %>%
   gather() %>%
   group_by(key) %>%
   mode_hdi(value) %>%
-  mutate_if(is.double, round, digits = 3)
+  mutate_if(is.double, round, digits = 3) %>% 
+  mutate(lod = 30)
 
 coef_mams_42s <-
     coef(m_linear_mams_42s, summary = F)$Treatm_arm %>%
@@ -1002,9 +1071,10 @@ coefs_mams <- coef_mams_42s %>%
   group_by(key) %>%
   mode_hdi(value) %>%
   mutate_if(is.double, round, digits = 3) %>%
+  mutate(lod = 42) %>% 
   bind_rows(t30) %>%
   bind_rows(t25) %>%
-  filter(str_detect(key, "weeks"))
+  filter(str_detect(key, "weeks")) 
 
 coefs_mams %>%
   transmute(key, value, .lower, .upper, `CI width` = abs(.upper - .lower), .point, .interval) %>%
@@ -1035,7 +1105,8 @@ t25 <- coef_remox_25s %>%
   gather() %>%
   group_by(key) %>%
   mode_hdi(value) %>%
-  mutate_if(is.double, round, digits = 3)
+  mutate_if(is.double, round, digits = 3) %>% 
+  mutate(lod = 25)
 
 coef_remox_30s <-
     coef(m_linear_remox_30s, summary = F)$treat %>%
@@ -1045,7 +1116,8 @@ t30 <- coef_remox_30s %>%
   gather() %>%
   group_by(key) %>%
   mode_hdi(value) %>%
-  mutate_if(is.double, round, digits = 3)
+  mutate_if(is.double, round, digits = 3) %>% 
+  mutate(lod = 30)
 
 coef_remox_42s <-
     coef(m_linear_remox_42s, summary = F)$treat %>%
@@ -1056,6 +1128,7 @@ coefs_remox <- coef_remox_42s %>%
   group_by(key) %>%
   mode_hdi(value) %>%
   mutate_if(is.double, round, digits = 3) %>%
+  mutate(lod = 42) %>% 
   bind_rows(t30) %>%
   bind_rows(t25) %>%
   filter(str_detect(key, "weeks"))
@@ -1076,6 +1149,110 @@ coefs_remox %>%
   pack_rows(group_label = "LOD = 25",
              start_row = 7,
              end_row = 9)
+```
+
+## Forest plot
+
+```{r}
+bind_rows(mutate(coefs_mams, Data = "MAMS-TB"), 
+          mutate(coefs_remox, Data = "REMoxTB")) %>% 
+  mutate(key = str_remove(key, pattern = ".weeks")) %>% 
+  mutate(key = str_remove(key, pattern = c("1. "))) %>%
+  mutate(key = str_remove(key, pattern = c("2. "))) %>%
+  mutate(key = str_remove(key, pattern = c("3. "))) %>%
+  mutate(`Censoring limit` = paste0(lod, " days")) %>% 
+  ggplot(aes(x = value, y = key, col = `Censoring limit`, shape = `Censoring limit`)) + 
+  facet_grid(rows = vars(Data), scales = "free_y", space = "free_y") + 
+  geom_errorbarh(aes(xmin = .lower, xmax = .upper),
+                 position = position_dodge(width = 0.35),
+                 height = 0.3) + 
+  geom_point(position = position_dodge(width = 0.35),
+             size = 2) +
+  scale_color_manual(values = ucsf_col_pal[c(2,4,8)]) + 
+  scale_x_continuous(breaks = seq(0.06,0.16,by = 0.02),
+                     labels = seq(0.06,0.16,by = 0.02)) + 
+  coord_cartesian(xlim = c(0.06,0.16)) + 
+  theme(axis.title.y = element_blank(),
+        legend.position = c(0.85,0.15)) + 
+  labs(x = "Estimate (95% Credible Interval)")
+```
+
+```{r}
+#| eval: false
+ggsave(filename = here("graphs", "publication", "forest-plot_sensitivity.tiff"),
+       device = "tiff",
+       units = "in",
+       height = 4.5,
+       width = 9)
+```
+
+## Visualization (ALL)
+
+```{r}
+mams_diff_s <- coefs_mams %>% 
+  # mutate(lod = c(rep(42, 5), rep(30,5), rep(25,5))) %>% 
+  mutate(CI.width = abs(.upper - .lower)) %>% 
+  group_by(key) %>% 
+  # Comparing each lod against 42
+  summarise(lod, 
+            point.estimate.ratio = value/value[lod == 42],
+            CI.width.ratio = CI.width/CI.width[lod == 42]) %>% 
+  mutate(coefficient = "gamma") %>% 
+  # Removing reference (lod = 42)
+  filter(lod != 42) %>% 
+  mutate(data = "MAMS-TB (excluding baseline TTP)")
+
+remox_diff_s <- coefs_remox %>% 
+  # mutate(lod = c(rep(42, 3), rep(30,3))) %>% 
+  mutate(CI.width = abs(.upper - .lower)) %>% 
+  group_by(key) %>% 
+  # Comparing each lod against 42
+  summarise(lod, 
+            point.estimate.ratio = value/value[lod == 42],
+            CI.width.ratio = CI.width/CI.width[lod == 42]) %>% 
+  mutate(coefficient = "gamma") %>% 
+  # Removing reference (lod = 42)
+  filter(lod != 42) %>% 
+  mutate(data = "REMoxTB (excluding baseline TTP)")
+
+bind_rows(rename(mams_diff, regimen = key), 
+          rename(remox_diff, regimen = key),
+          rename(mams_diff_s, regimen = key), 
+          rename(remox_diff_s, regimen = key),
+          # mams_diff_nl,
+          # remox_diff_nl
+          ) %>% 
+  mutate(`Censoring Limit (days)` = as.factor(lod),
+         `Dataset` = # + Model` = 
+           data) %>% 
+  ggplot(aes(x = point.estimate.ratio, y = CI.width.ratio)) +
+  # facet_wrap(~coefficient) +
+  geom_hline(yintercept = 1, col = "black") + 
+  geom_vline(xintercept = 1, col = "black") + 
+  geom_point(alpha = 0.8,
+             size = 3,
+             aes(col = `Dataset`,# + Model`,
+                 shape = `Censoring Limit (days)`)) +
+  scale_shape_manual(values = c(16,4)) + 
+  coord_fixed(ylim = c(0.7,1/0.7),
+              xlim = c(0.7,1/0.7)) +
+  scale_x_log10(breaks = c(0.1,0.6,0.7,0.8,0.9,1,1.1,1.2,1.3,1.4,1.5,2,4,6)) + 
+  scale_y_log10(breaks = c(0.1,0.6,0.7,0.8,0.9,1,1.1,1.2,1.3,1.4,1.5,2,4,6)) +
+  scale_color_manual(values = ucsf_col_pal[c(2,5,8,9)]) + 
+  labs(x = TeX("$\\hat{\\gamma}_{1j, \\cdot} / \\hat{\\gamma}_{1j, 42}$"),
+       y = "Ratio of 95% CI width relative to 42-day 95% CI width") +
+  theme(axis.line = element_blank(),
+        legend.position = c(0.8,0.25))
+```
+
+```{r}
+#| eval: false
+ggsave(filename = here("graphs", "publication",
+                       paste0("point-plot_all-ratios.tiff")),
+       device = "tiff",
+       height = 6.75,
+       width = 6.75,
+       units = "in")
 ```
 
 # Model Convergence - MAMS-TB
