@@ -1297,12 +1297,15 @@ plot(m_linear_mams_42, ask = FALSE)
 ## MAMS-TB: Nonlinear 25-day {.scrollable}
 
 ```{r}
+#| eval: false
 m_nonlinear_mams_25
 ```
 
 ## MAMS-TB: Nonlinear 25-day posterior {.scrollable}
 
 ```{r}
+#| eval: false
+m_nonlinear_mams_25
 plot(m_nonlinear_mams_25, ask = FALSE)
 ```
 
