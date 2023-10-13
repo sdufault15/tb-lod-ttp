@@ -27,6 +27,8 @@ library(ggalluvial)
 library(tidybayes)
 
 source(here("lib", "ucsf-color-palette.R"))
+source(here("lib", "relative-function-mams.R")) # used for posterior comparison of regimens v control
+source(here("lib", "relative-function-remox.R")) # used for posterior comparison of regimens v control
 load(here("data", "cleaned-data", "2023-08-15_remoxtb-clean.RData"))
 load(here("data", "cleaned-data", "2023-08-15_mams-clean.RData"))
 theme_set(ggpubr::theme_pubr())
@@ -1024,6 +1026,68 @@ ggsave(filename = here("graphs", "models", "05_point-plot_model-estimate-ratios.
 For the REMoxTB and MAMS-TB data, point estimates in the 30-day models *decrease* relative to the 42-day models, as expected when "removing" data at the upper end of the spectrum.
 
 However, credible intervals (e.g., precision) remain either the same or *improve* in the 30-day models relative to the 42-day models. In the REMoxTB data, the CIs improve more than the point estimates shrink. This is also true for 3 out of 5 arms in the MAMS-TB data.
+
+# Differentiation of Regimens
+
+## Motivation
+We're not just interested in the estimation of TTP slopes. More importantly, we want to directly address whether improved estimation allows us to make ``better'' decisions, ideally earlier. Therefore, this section will look at the ability to differentiate ``promising'' regimens relative to control, where promising is assumed to mean those with *steeper changes in log10(TTP)* than control regimens.
+
+```{r}
+# Running the posterior distribution functions
+df_42m <- relative_function_mams(m_linear_mams_42, loq = 42)
+df_30m <- relative_function_mams(m_linear_mams_30, loq = 30)
+df_42r <- relative_function_remox(m_linear_remox_42, loq = 42)
+df_30r <- relative_function_remox(m_linear_remox_30, loq = 30)
+```
+
+## MAMS
+```{r}
+mams_diff <- bind_rows(mutate(df_42m$output, LOQ = "42 days"),
+                       mutate(df_30m$output, LOQ = "30 days")) 
+mams_diff %>% 
+  pivot_wider(names_from = LOQ, 
+              values_from = posterior.prob) %>% 
+  ggplot(aes(x = `Percent Change`)) + 
+  facet_wrap(~regimen) +
+  geom_segment(aes(xend = `Percent Change`, y = `42 days`, yend = `30 days`)) + 
+  geom_point(aes(y = `42 days`,
+                 col = "42 days")) +
+  geom_point(aes(y = `30 days`,
+                 col = "30 days")) +
+  labs(y = TeX("Pr(\\theta \\geq x)"),
+       x = "x, Relative change in log10(TTP) slope as compared to HRZE",
+       color = "LOQ") + 
+  scale_color_manual(values = ucsf_col_pal[c(2,8)])
+```
+
+## Takeaway
+
+For the MAMS-TB data, using a 30-day limit of quantification improves the ability to differentiate regimens relative to the control. The estimated posterior probability (e.g., "confidence") that a given regimen's rate of change is as steep or steeper than then the control regimen's rate of change is best for nearly all regimens with a 30- rather than 42-day limit of quantification.
+
+## REMoxTb
+```{r}
+remox_diff <- bind_rows(mutate(df_42r$output, LOQ = "42 days"),
+                        mutate(df_30r$output, LOQ = "30 days")) 
+remox_diff %>% 
+  pivot_wider(names_from = LOQ, 
+              values_from = posterior.prob) %>% 
+  ggplot(aes(x = `Percent Change`)) + 
+  facet_wrap(~regimen,
+             ncol = 1) +
+  geom_segment(aes(xend = `Percent Change`, y = `42 days`, yend = `30 days`)) + 
+  geom_point(aes(y = `42 days`,
+                 col = "42 days")) +
+  geom_point(aes(y = `30 days`,
+                 col = "30 days")) +
+  labs(y = TeX("Pr(\\theta \\geq x)"),
+       x = "x, Relative change in log10(TTP) slope as compared to HRZE",
+       color = "LOQ") + 
+  scale_color_manual(values = ucsf_col_pal[c(2,8)])
+```
+
+## Takeaway
+
+The same trend as was observed in MAMS is not observed in the REMoxTB data, which is perplexing. The 42-day limit of quantification is observed to correlate with a stronger posterior probability of differentiation between the novel regimens and the control (HRZE). 
 
 # Sensitivity Analyses
 
