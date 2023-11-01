@@ -78,6 +78,21 @@ We restrict to those with:
 
 -   `!is.na(DV)` (i.e., only those with an observed time to positivity)
 
+## TB-PACTS NC-002 M-Pa-Z
+
+```{r}
+load("~/Documents/ucsf-research-git/tb-pacts-general/generated-datasets/2023-10-31_tb-pacts-data-with-ttp-measures.RData")
+list2env(tb_pacts, envir = environment())
+```
+
+## TB-PACTS NC-005  M-Pa-Z-B
+
+## TB-PACTS NC-006 (STAND)
+
+## TB-PACTS TBTC-S29
+
+## TB-PACTS TBTC-S29x
+
 ## Methods - Models
 
 ```{r}
@@ -177,6 +192,9 @@ df_analysis_mams %>%
 ```{r}
 #| fig-cap: "Observed TTP trajectories, where anything at or above 42 receives a value of 42."
 p1 <- df_analysis_remox %>% 
+  # Averaging the replicate measures
+  group_by(trial_no, weeks) %>% 
+  mutate(dtp_42_avg = mean(dtp_42)) %>% 
   ggplot(aes(x = weeks, y = dtp_42, col = treat, lty = treat)) + 
   # geom_point(alpha = 0.3,
   #            position = position_jitter(width = 0.1,height = 0)) +
@@ -196,7 +214,10 @@ p1 <- df_analysis_remox %>%
   scale_color_manual(values = ucsf_col_pal)
 
 p2 <- df_analysis_remox %>% 
-  ggplot(aes(x = weeks, y = dtp_42, group=trial_no)) + 
+  group_by(trial_no, weeks) %>% 
+  # Averaging the replicate measures
+  mutate(dtp_42_avg = mean(dtp_42)) %>% 
+  ggplot(aes(x = weeks, y = dtp_42_avg, group=trial_no)) + 
   facet_wrap(~treat, ncol = 1) + 
   geom_line(alpha = 0.1,
             col = "darkgray") + 
@@ -248,6 +269,9 @@ Panel B
 ```{r}
 #| fig-cap: "Observed TTP trajectories, where anything at or above 42 receives a value of 42."
 p1_mams <- df_analysis_mams %>% 
+  # Averaging the replicate measures
+  group_by(patient.id, weeks) %>% 
+  mutate(dtp_42_avg = mean(dtp_42)) %>% 
   ggplot(aes(x = weeks, y = dtp_42, col = Treatm_arm, lty = Treatm_arm)) + 
   # geom_point(alpha = 0.3,
   #            position = position_jitter(width = 0.1,height = 0)) +
@@ -268,7 +292,10 @@ p1_mams <- df_analysis_mams %>%
   scale_color_manual(values = ucsf_col_pal)
 
 p2_mams <- df_analysis_mams %>% 
-  ggplot(aes(x = weeks, y = dtp_42, group=patient.id)) + 
+  # Averaging the replicate measures
+  group_by(patient.id, weeks) %>% 
+  mutate(dtp_42_avg = mean(dtp_42)) %>%
+  ggplot(aes(x = weeks, y = dtp_42_avg, group=patient.id)) + 
   facet_wrap(~Treatm_arm, ncol = 1) + 
   geom_line(alpha = 0.3,
             col = "darkgray") + 
@@ -1031,7 +1058,7 @@ However, credible intervals (e.g., precision) remain either the same or *improve
 
 ## Motivation
 
-We're not just interested in the estimation of TTP slopes. More importantly, we want to directly address whether improved estimation allows us to make `better'' decisions, ideally earlier. Therefore, this section will look at the ability to differentiate`promising'' regimens relative to control, where promising is assumed to mean those with *steeper changes in log10(TTP)* than control regimens.
+We're not just interested in the estimation of TTP slopes. More importantly, we want to directly address whether improved estimation allows us to make "better" decisions, ideally earlier. Therefore, this section will look at the ability to differentiate "promising" regimens relative to control, where promising is assumed to mean those with *steeper changes in log10(TTP)* than control regimens.
 
 ```{r}
 # Running the posterior distribution functions
@@ -1163,15 +1190,102 @@ remox_differentiation %>%
   scale_color_manual(values = ucsf_col_pal[c(2,8,9)])
 ```
 
-## Signal-to-Noise (Replicates)
-
-```{r}
-
-```
-
 ## Takeaway
 
 The same trend as was observed in MAMS is not observed in the REMoxTB data, which is perplexing. The 42-day limit of quantification is observed to correlate with a stronger posterior probability of differentiation between the novel regimens and the control (HRZE).
+
+Should we be doing more of a grid-search or can we motivate this better with a S-N exploration first?
+
+# Signal-to-Noise 
+
+## Replicates (NC-002) {.scrollable}
+
+```{r}
+# df_NC_002 %>% 
+#   # Taking the first 8 weeks of observation
+#   filter(MBDY <= 7*8) %>% 
+#   # Setting NA values to 42 for plotting purposes
+#   mutate(dtp_42 = ifelse(is.na(MBSTRESN), 42, MBSTRESN),
+#          censored_42 = ifelse(is.na(MBSTRESN), "right", "none")) %>% 
+#   group_by(USUBJID, MBDY) %>% 
+#   # For those with multiple measurements, take the average
+#   summarise(mean_dtp = mean(dtp_42)) %>% 
+#   ggplot(aes(x = MBDY,y = mean_dtp)) +
+#   geom_line(aes(group = USUBJID),
+#             col = "darkgray",
+#             alpha = 0.6) +
+#   scale_x_continuous("Days since randomization", 
+#                      breaks = seq(0,52,by = 7)) + 
+#   geom_smooth(se=FALSE)
+
+p1 <- df_NC_002 %>% 
+  # Smaller dataset to work with
+  dplyr::select(USUBJID, MBDY, MBSTRESN, ACTARM) %>% 
+  distinct() %>% 
+  # Taking the first 8 weeks of observation
+  filter(MBDY <= 7*8 & MBDY >= 0) %>% 
+  # Setting NA values to 42 for plotting purposes
+  mutate(dtp_42 = ifelse(is.na(MBSTRESN), 42, MBSTRESN)) %>% #,
+         # censored_42 = ifelse(is.na(MBSTRESN), "right", "none")) %>% 
+  dplyr::select(-MBSTRESN) %>% 
+  # Identify replicates
+  group_by(USUBJID, MBDY) %>% 
+  mutate(replicate = row_number()) %>% 
+  pivot_wider(values_from = dtp_42,
+              names_from = replicate) %>%
+  # Keep replicates only (no singlets)
+  filter(!is.na(`1`) & !is.na(`2`)) %>% 
+  ggplot(aes(x = `1`, y = `2`, col = (`1` >= 42 | `2` >= 42))) +  
+  geom_abline(slope = 1, intercept = 0, lty = 1, col = "red") +
+  geom_point(alpha = 0.4) + 
+  scale_color_manual("Above LOD = 42", values = c("black", "orange")) + 
+  scale_x_log10(TeX("TTP$_1$, log10 scale"),
+                breaks = c(1,3,10,25,30,42)) + 
+  scale_y_log10(TeX("TTP$_2$, log10 scale"),
+                breaks = c(1,3,10,25,30,42)) + 
+  coord_cartesian(xlim = c(1,60),
+                  ylim = c(1,60)) + 
+  labs(title = "Study NC-002", subtitle = "Replicates") + 
+  theme(legend.position = "bottom")
+
+library(ggExtra)
+ggMarginal(p1, groupColour = TRUE, groupFill = TRUE)
+```
+
+## Replicates over time (NC-002)
+
+Not super satisfied with this plot, but I do like that it seems to confirm that the deviance in replicates increases as the expected value of TTP increases (e.g., with time).
+
+```{r}
+df_NC_002 %>% 
+  # Smaller dataset to work with
+  dplyr::select(USUBJID, MBDY, MBSTRESN, ACTARM) %>% 
+  distinct() %>% 
+  # Taking the first 8 weeks of observation
+  filter(MBDY <= 7*8 & MBDY >= 0) %>% 
+  # Setting NA values to 42 for plotting purposes
+  mutate(dtp_42 = ifelse(is.na(MBSTRESN), 42, MBSTRESN)) %>% #,
+         # censored_42 = ifelse(is.na(MBSTRESN), "right", "none")) %>% 
+  dplyr::select(-MBSTRESN) %>% 
+  # Identify replicates
+  group_by(USUBJID, MBDY) %>% 
+  mutate(replicate = row_number()) %>% 
+  pivot_wider(values_from = dtp_42,
+              names_from = replicate) %>% 
+  # Keep replicates only (no singlets)
+  filter(!is.na(`1`) & !is.na(`2`)) %>% 
+  # Calculating absolute difference in measurement (or ratio?)
+  mutate(abs_diff = abs(`1` - `2`)) %>% 
+  ggplot(aes(x = MBDY, y = abs_diff)) + 
+  geom_hline(yintercept = 0,
+             col = "red") +
+  geom_point(alpha = 0.5) +
+  # geom_violin(aes(group = ceiling(MBDY/7))) +
+  geom_smooth() +
+  labs(x = "Days since randomization", y = TeX("| TTP$_1$ - TTP$_2$ |"),
+       title = "NC-002", subtitle = "Replicates") + 
+  scale_x_continuous(breaks = seq(0,56,by = 7)) 
+```
 
 # Sensitivity Analyses
 
