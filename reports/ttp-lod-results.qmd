@@ -1253,6 +1253,38 @@ p1
 # ggMarginal(p1, groupColour = TRUE, groupFill = TRUE)
 ```
 
+
+```{r}
+#| eval: false
+ggsave(filename = here("graphs", "publication", "NC-002_replicate-point-plot.png"),
+       device = "png",
+       units = "in",
+       height = 7,
+       width = 7)
+```
+
+```{r}
+library(zoo)
+reps <- df_NC_002 %>% 
+  # Smaller dataset to work with
+  dplyr::select(USUBJID, MBDY, MBSTRESN, ACTARM) %>% 
+  distinct() %>% 
+  # Taking the first 8 weeks of observation
+  filter(MBDY <= 7*8 & MBDY >= 0) %>% 
+  # Setting NA values to 42 for plotting purposes
+  mutate(dtp_42 = ifelse(is.na(MBSTRESN), 42, MBSTRESN)) %>% #,
+         # censored_42 = ifelse(is.na(MBSTRESN), "right", "none")) %>% 
+  dplyr::select(-MBSTRESN) %>% 
+  # Identify replicates
+  group_by(USUBJID, MBDY) %>% 
+  mutate(replicate = row_number()) %>% 
+  pivot_wider(values_from = dtp_42,
+              names_from = replicate) %>%
+  # Keep replicates only (no singlets)
+  filter(!is.na(`1`) & !is.na(`2`)) %>% 
+  arrange(USUBJID, MBDY) 
+```
+
 ## Replicates over time (NC-002)
 
 Not super satisfied with this plot, but I do like that it seems to confirm that the deviance in replicates increases as the expected value of TTP increases (e.g., with time).
