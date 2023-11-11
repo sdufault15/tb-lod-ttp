@@ -27,6 +27,8 @@ library(ggalluvial)
 library(tidybayes)
 
 source(here("lib", "ucsf-color-palette.R"))
+source(here("lib", "relative-function-mams.R")) # used for posterior comparison of regimens v control
+source(here("lib", "relative-function-remox.R")) # used for posterior comparison of regimens v control
 load(here("data", "cleaned-data", "2023-08-15_remoxtb-clean.RData"))
 load(here("data", "cleaned-data", "2023-08-15_mams-clean.RData"))
 theme_set(ggpubr::theme_pubr())
@@ -76,6 +78,21 @@ We restrict to those with:
 
 -   `!is.na(DV)` (i.e., only those with an observed time to positivity)
 
+## TB-PACTS NC-002 M-Pa-Z
+
+```{r}
+load("~/Documents/ucsf-research-git/tb-pacts-general/generated-datasets/2023-10-31_tb-pacts-data-with-ttp-measures.RData")
+list2env(tb_pacts, envir = environment())
+```
+
+## TB-PACTS NC-005  M-Pa-Z-B
+
+## TB-PACTS NC-006 (STAND)
+
+## TB-PACTS TBTC-S29
+
+## TB-PACTS TBTC-S29x
+
 ## Methods - Models
 
 ```{r}
@@ -114,7 +131,7 @@ ggsave(filename = here("graphs", "models", "00_models-hypothesized.tiff"),
 
 -   **Models:** Bayesian (linear fit), Burger bi-linear model, etc.
 
--   **LOD:** 25, 30, 42
+-   **LOQ:** 25, 30, 42
 
 # Descriptive Profile
 
@@ -175,6 +192,9 @@ df_analysis_mams %>%
 ```{r}
 #| fig-cap: "Observed TTP trajectories, where anything at or above 42 receives a value of 42."
 p1 <- df_analysis_remox %>% 
+  # Averaging the replicate measures
+  group_by(trial_no, weeks) %>% 
+  mutate(dtp_42_avg = mean(dtp_42)) %>% 
   ggplot(aes(x = weeks, y = dtp_42, col = treat, lty = treat)) + 
   # geom_point(alpha = 0.3,
   #            position = position_jitter(width = 0.1,height = 0)) +
@@ -194,7 +214,10 @@ p1 <- df_analysis_remox %>%
   scale_color_manual(values = ucsf_col_pal)
 
 p2 <- df_analysis_remox %>% 
-  ggplot(aes(x = weeks, y = dtp_42, group=trial_no)) + 
+  group_by(trial_no, weeks) %>% 
+  # Averaging the replicate measures
+  mutate(dtp_42_avg = mean(dtp_42)) %>% 
+  ggplot(aes(x = weeks, y = dtp_42_avg, group=trial_no)) + 
   facet_wrap(~treat, ncol = 1) + 
   geom_line(alpha = 0.1,
             col = "darkgray") + 
@@ -246,6 +269,9 @@ Panel B
 ```{r}
 #| fig-cap: "Observed TTP trajectories, where anything at or above 42 receives a value of 42."
 p1_mams <- df_analysis_mams %>% 
+  # Averaging the replicate measures
+  group_by(patient.id, weeks) %>% 
+  mutate(dtp_42_avg = mean(dtp_42)) %>% 
   ggplot(aes(x = weeks, y = dtp_42, col = Treatm_arm, lty = Treatm_arm)) + 
   # geom_point(alpha = 0.3,
   #            position = position_jitter(width = 0.1,height = 0)) +
@@ -266,7 +292,10 @@ p1_mams <- df_analysis_mams %>%
   scale_color_manual(values = ucsf_col_pal)
 
 p2_mams <- df_analysis_mams %>% 
-  ggplot(aes(x = weeks, y = dtp_42, group=patient.id)) + 
+  # Averaging the replicate measures
+  group_by(patient.id, weeks) %>% 
+  mutate(dtp_42_avg = mean(dtp_42)) %>%
+  ggplot(aes(x = weeks, y = dtp_42_avg, group=patient.id)) + 
   facet_wrap(~Treatm_arm, ncol = 1) + 
   geom_line(alpha = 0.3,
             col = "darkgray") + 
@@ -462,7 +491,7 @@ df_analysis_remox %>%
 
 # Variance/Signal-to-Noise Investigation
 
-## Proportion of data censored for varying LOD limits
+## Proportion of data censored for varying LOQ limits
 
 *Idea:* Maybe this should a "relative" to 42 plot, rather than an absolute plot? Would that make it easier to read? or add in limited horizontal lines?
 
@@ -604,39 +633,39 @@ load(here("data", "model-generated", "2023-09-01_linear-remox-lod-25.RData"))
 o_42 <- m_linear_mams_42 %>%
   gather_draws(b_weeks) %>%
   median_hdci() %>%
-  mutate(lod = 42)
+  mutate(LOQ = 42)
 
 o_30 <- m_linear_mams_30 %>%
   gather_draws(b_weeks) %>%
   median_hdci() %>%
-  mutate(lod = 30)
+  mutate(LOQ = 30)
 
 o_25 <- m_linear_mams_25 %>%
   gather_draws(b_weeks) %>%
   median_hdci() %>%
-  mutate(lod = 25)
+  mutate(LOQ = 25)
 
 bind_rows(o_42, o_30, o_25) %>%
   mutate(ci.width = .upper - .lower,
-         estimate.ratio = .value/.value[lod == 42]) %>%
-  mutate(ci.ratio = ci.width/ci.width[lod==42]) %>%
+         estimate.ratio = .value/.value[LOQ == 42]) %>%
+  mutate(ci.ratio = ci.width/ci.width[LOQ==42]) %>%
   kable(digits = 3, caption = "30 may be too low for the MAMS data. Curious about other cutoffs. Perhaps a grid run? Linear models compile within 5 minutes.") %>%
   kable_styling(font_size = 16)
 
 o_42 <- m_linear_remox_42 %>%
   gather_draws(b_weeks) %>%
   median_hdci() %>%
-  mutate(lod = 42)
+  mutate(LOQ = 42)
 
 o_30 <- m_linear_remox_30 %>%
   gather_draws(b_weeks) %>%
   median_hdci() %>%
-  mutate(lod = 30)
+  mutate(LOQ = 30)
 
 bind_rows(o_42, o_30) %>%
   mutate(ci.width = .upper - .lower,
-         estimate.ratio = .value[lod == 30]/.value[lod == 42]) %>%
-  mutate(ci.ratio = ci.width[lod == 30]/ci.width[lod==42]) %>%
+         estimate.ratio = .value[LOQ == 30]/.value[LOQ == 42]) %>%
+  mutate(ci.ratio = ci.width[LOQ == 30]/ci.width[LOQ==42]) %>%
   kable(digits = 3, caption = "REMox") %>%
   kable_styling(font_size = 16)
 ```
@@ -653,7 +682,7 @@ t25 <- coef_mams_25 %>%
   group_by(key) %>% 
   mode_hdi(value) %>% 
   mutate_if(is.double, round, digits = 3) %>% 
-  mutate(lod = 25)
+  mutate(LOQ = 25)
 
 coef_mams_30 <-
     coef(m_linear_mams_30, summary = F)$Treatm_arm %>% 
@@ -664,7 +693,7 @@ t30 <- coef_mams_30 %>%
   group_by(key) %>% 
   mode_hdi(value) %>% 
   mutate_if(is.double, round, digits = 3) %>% 
-  mutate(lod = 30)
+  mutate(LOQ = 30)
 
 coef_mams_42 <-
     coef(m_linear_mams_42, summary = F)$Treatm_arm %>% 
@@ -675,7 +704,7 @@ coefs_mams <- coef_mams_42 %>%
   group_by(key) %>% 
   mode_hdi(value) %>% 
   mutate_if(is.double, round, digits = 3) %>% 
-  mutate(lod = 42) %>% 
+  mutate(LOQ = 42) %>% 
   bind_rows(t30) %>% 
   bind_rows(t25) %>% 
   filter(str_detect(key, "weeks")) 
@@ -687,13 +716,13 @@ coefs_mams %>%
   kable(digits = 3,
         caption = "(MAMS-TB) Posterior group-level estimates of slope from the 30- and 42-day models (95% Credible Intervals).") %>% 
   kable_styling(font_size = 16) %>% 
-  pack_rows(group_label = "LOD = 42", 
+  pack_rows(group_label = "LOQ = 42", 
              start_row = 1,
              end_row = 5) %>% 
-  pack_rows(group_label = "LOD = 30",
+  pack_rows(group_label = "LOQ = 30",
              start_row = 6,
              end_row = 10) %>% 
-  pack_rows(group_label = "LOD = 25",
+  pack_rows(group_label = "LOQ = 25",
              start_row = 11,
              end_row = 15)
 ```
@@ -710,7 +739,7 @@ t25 <- coef_remox_25 %>%
   group_by(key) %>% 
   mode_hdi(value) %>% 
   mutate_if(is.double, round, digits = 3) %>% 
-  mutate(lod = 25)
+  mutate(LOQ = 25)
 
 coef_remox_30 <-
     coef(m_linear_remox_30, summary = F)$treat %>% 
@@ -721,7 +750,7 @@ t30 <- coef_remox_30 %>%
   group_by(key) %>% 
   mode_hdi(value) %>% 
   mutate_if(is.double, round, digits = 3) %>% 
-  mutate(lod = 30)
+  mutate(LOQ = 30)
 
 coef_remox_42 <-
     coef(m_linear_remox_42, summary = F)$treat %>% 
@@ -732,7 +761,7 @@ coefs_remox <- coef_remox_42 %>%
   group_by(key) %>% 
   mode_hdi(value) %>% 
   mutate_if(is.double, round, digits = 3) %>% 
-  mutate(lod = 42) %>% 
+  mutate(LOQ = 42) %>% 
   bind_rows(t30) %>% 
   bind_rows(t25) %>% 
   filter(str_detect(key, "weeks")) 
@@ -744,13 +773,13 @@ coefs_remox %>%
   kable(digits = 3,
         caption = "(REMoxTB) Posterior group-level estimates of slope from the 30- and 42-day models.") %>% 
   kable_styling(font_size = 16) %>% 
-  pack_rows(group_label = "LOD = 42", 
+  pack_rows(group_label = "LOQ = 42", 
              start_row = 1,
              end_row = 3) %>% 
-  pack_rows(group_label = "LOD = 30",
+  pack_rows(group_label = "LOQ = 30",
              start_row = 4,
              end_row = 6) %>% 
-  pack_rows(group_label = "LOD = 25",
+  pack_rows(group_label = "LOQ = 25",
              start_row = 7,
              end_row = 9)
 ```
@@ -764,7 +793,7 @@ bind_rows(mutate(coefs_mams, Data = "MAMS-TB"),
   mutate(key = str_remove(key, pattern = c("1. "))) %>%
   mutate(key = str_remove(key, pattern = c("2. "))) %>%
   mutate(key = str_remove(key, pattern = c("3. "))) %>%
-  mutate(`Censoring limit` = paste0(lod, " days")) %>% 
+  mutate(`Censoring limit` = paste0(LOQ, " days")) %>% 
   ggplot(aes(x = value, y = key, col = `Censoring limit`, shape = `Censoring limit`)) + 
   facet_grid(rows = vars(Data), scales = "free_y", space = "free_y") + 
   geom_errorbarh(aes(xmin = .lower, xmax = .upper),
@@ -804,23 +833,23 @@ plot(p1)
 
 ```{r}
 coefs_mams %>% 
-  mutate(lod = c(rep(42, 5), rep(30,5), rep(25,5))) %>% 
+  mutate(LOQ = c(rep(42, 5), rep(30,5), rep(25,5))) %>% 
   mutate(CI.width = abs(.upper - .lower)) %>% 
   group_by(key) %>% 
-  summarise(point.estimate.ratio.30.42 = value[lod==30]/value[lod == 42],
-            CI.width.ratio.30.42 = CI.width[lod==30]/CI.width[lod == 42],
-            point.estimate.ratio.25.42 = value[lod==25]/value[lod == 42],
-            CI.width.ratio.25.42 = CI.width[lod==25]/CI.width[lod == 42]) %>% 
+  summarise(point.estimate.ratio.30.42 = value[LOQ==30]/value[LOQ == 42],
+            CI.width.ratio.30.42 = CI.width[LOQ==30]/CI.width[LOQ == 42],
+            point.estimate.ratio.25.42 = value[LOQ==25]/value[LOQ == 42],
+            CI.width.ratio.25.42 = CI.width[LOQ==25]/CI.width[LOQ == 42]) %>% 
   kable(digits = 4,
         caption = "(MAMS-TB) Change in point estimate and confidence interval width (30 days / 42 days).") %>% 
   kable_styling(font_size = 20)
 
 coefs_remox %>% 
-  mutate(lod = c(rep(42, 3), rep(30,3))) %>% 
+  # mutate(LOQ = c(rep(42, 3), rep(30,3), rep(25,3))) %>% 
   mutate(CI.width = abs(.upper - .lower)) %>% 
   group_by(key) %>% 
-  summarise(point.estimate.ratio = value[lod == 30]/value[lod == 42],
-            CI.width.ratio = CI.width[lod == 30]/CI.width[lod == 42]) %>% 
+  summarise(point.estimate.ratio = value[LOQ == 30]/value[LOQ == 42],
+            CI.width.ratio = CI.width[LOQ == 30]/CI.width[LOQ == 42]) %>% 
   kable(digits = 4,
         caption = "(REMoxTB) Change in point estimate and confidence interval width (30 days / 42 days).") %>% 
   kable_styling(font_size = 20)
@@ -843,7 +872,7 @@ t30 <- coef_mams_30 %>%
   group_by(key) %>% #summarise(n = n())
   mode_qi(value) %>% # things get duplicated here.... (qi works, but not hdi?)
   mutate_if(is.double, round, digits = 3) %>% 
-  mutate(lod = 30)
+  mutate(LOQ = 30)
 
 coef_mams_42 <-
     coef(m_nonlinear_mams_42, summary = F)$Treatm_arm %>% 
@@ -854,14 +883,14 @@ coefs_mams_nl <- coef_mams_42 %>%
   group_by(key) %>% 
   mode_qi(value) %>% 
   mutate_if(is.double, round, digits = 3) %>%  
-  mutate(lod = 42) %>% 
+  mutate(LOQ = 42) %>% 
   bind_rows(t30) %>% 
   filter(str_detect(key, "beta")) %>%
   separate(col = key,
            into = c("regimen", "coefficient"))
 
 coefs_mams_nl %>% 
-  transmute(regimen, coefficient, value, .lower, .upper, `CI width` = abs(.upper - .lower), .point, .interval, lod) %>% 
+  transmute(regimen, coefficient, value, .lower, .upper, `CI width` = abs(.upper - .lower), .point, .interval, LOQ) %>% 
   rename("Estimate" = value, "CI.l" = .lower, "CI.u" = .upper, 
          "Point Estimation" = .point, "CI Estimation" = .interval) %>% 
   arrange(coefficient, regimen) %>% 
@@ -894,7 +923,7 @@ t30 <- coef_remox_30 %>%
   group_by(key) %>% #summarise(n = n())
   mode_qi(value) %>% # things get duplicated here.... (qi works, but not hdi?)
   mutate_if(is.double, round, digits = 3) %>% 
-  mutate(lod = 30)
+  mutate(LOQ = 30)
 
 coef_remox_42 <-
     coef(m_nonlinear_remox_42, summary = F)$treat %>% 
@@ -905,7 +934,7 @@ coefs_remox_nl <- coef_remox_42 %>%
   group_by(key) %>% 
   mode_qi(value) %>% 
   mutate_if(is.double, round, digits = 3) %>%  
-  mutate(lod = 42) %>% 
+  mutate(LOQ = 42) %>% 
   bind_rows(t30) %>% 
   filter(str_detect(key, "beta")) %>%
   separate(col = key,
@@ -914,7 +943,7 @@ coefs_remox_nl <- coef_remox_42 %>%
   dplyr::select(-nuis, -regimen2)
 
 coefs_remox_nl %>% 
-  transmute(regimen, coefficient, value, .lower, .upper, `CI width` = abs(.upper - .lower), .point, .interval, lod) %>% 
+  transmute(regimen, coefficient, value, .lower, .upper, `CI width` = abs(.upper - .lower), .point, .interval, LOQ) %>% 
   rename("Estimate" = value, "CI.l" = .lower, "CI.u" = .upper, 
          #"CI width" = .width, 
          "Point Estimation" = .point, "CI Estimation" = .interval) %>% 
@@ -935,50 +964,50 @@ coefs_remox_nl %>%
 
 ```{r}
 mams_diff <- coefs_mams %>% 
-  # mutate(lod = c(rep(42, 5), rep(30,5), rep(25,5))) %>% 
+  # mutate(LOQ = c(rep(42, 5), rep(30,5), rep(25,5))) %>% 
   mutate(CI.width = abs(.upper - .lower)) %>% 
   group_by(key) %>% 
-  # Comparing each lod against 42
-  summarise(lod, 
-            point.estimate.ratio = value/value[lod == 42],
-            CI.width.ratio = CI.width/CI.width[lod == 42]) %>% 
+  # Comparing each LOQ against 42
+  summarise(LOQ, 
+            point.estimate.ratio = value/value[LOQ == 42],
+            CI.width.ratio = CI.width/CI.width[LOQ == 42]) %>% 
   mutate(coefficient = "gamma") %>% 
-  # Removing reference (lod = 42)
-  filter(lod != 42) %>% 
+  # Removing reference (LOQ = 42)
+  filter(LOQ != 42) %>% 
   mutate(data = "MAMS-TB")
 
 mams_diff_nl <- coefs_mams_nl %>% 
   mutate(CI.width = abs(.upper - .lower)) %>% 
   group_by(regimen, coefficient) %>% 
-  # Comparing each lod against 42
-  summarise(lod, 
-            point.estimate.ratio = value/value[lod == 42],
-            CI.width.ratio = CI.width/CI.width[lod == 42]) %>% 
-  # Removing reference (lod = 42)
-  filter(lod != 42) %>% 
+  # Comparing each LOQ against 42
+  summarise(LOQ, 
+            point.estimate.ratio = value/value[LOQ == 42],
+            CI.width.ratio = CI.width/CI.width[LOQ == 42]) %>% 
+  # Removing reference (LOQ = 42)
+  filter(LOQ != 42) %>% 
   mutate(data = "MAMS-TB (nl)")
 
 remox_diff <- coefs_remox %>% 
-  # mutate(lod = c(rep(42, 3), rep(30,3))) %>% 
+  # mutate(LOQ = c(rep(42, 3), rep(30,3))) %>% 
   mutate(CI.width = abs(.upper - .lower)) %>% 
   group_by(key) %>% 
-  # Comparing each lod against 42
-  summarise(lod, 
-            point.estimate.ratio = value/value[lod == 42],
-            CI.width.ratio = CI.width/CI.width[lod == 42]) %>% 
+  # Comparing each LOQ against 42
+  summarise(LOQ, 
+            point.estimate.ratio = value/value[LOQ == 42],
+            CI.width.ratio = CI.width/CI.width[LOQ == 42]) %>% 
   mutate(coefficient = "gamma") %>% 
-  # Removing reference (lod = 42)
-  filter(lod != 42) %>% 
+  # Removing reference (LOQ = 42)
+  filter(LOQ != 42) %>% 
   mutate(data = "REMoxTB")
 
 remox_diff_nl <- coefs_remox_nl %>% 
   mutate(CI.width = abs(.upper - .lower)) %>% 
   group_by(regimen, coefficient) %>% 
-  summarise(lod, 
-            point.estimate.ratio = value/value[lod == 42],
-            CI.width.ratio = CI.width/CI.width[lod == 42]) %>% 
-   # Removing reference (lod = 42)
-  filter(lod != 42) %>% 
+  summarise(LOQ, 
+            point.estimate.ratio = value/value[LOQ == 42],
+            CI.width.ratio = CI.width/CI.width[LOQ == 42]) %>% 
+   # Removing reference (LOQ = 42)
+  filter(LOQ != 42) %>% 
   mutate(data = "REMoxTB (nl)")
 
 bind_rows(rename(mams_diff, regimen = key), 
@@ -986,7 +1015,7 @@ bind_rows(rename(mams_diff, regimen = key),
           # mams_diff_nl,
           # remox_diff_nl
           ) %>% 
-  mutate(`Censoring Limit (days)` = as.factor(lod),
+  mutate(`Censoring Limit (days)` = as.factor(LOQ),
          `Dataset` = # + Model` = 
            data) %>% 
   ggplot(aes(x = point.estimate.ratio, y = CI.width.ratio)) +
@@ -1025,6 +1054,272 @@ For the REMoxTB and MAMS-TB data, point estimates in the 30-day models *decrease
 
 However, credible intervals (e.g., precision) remain either the same or *improve* in the 30-day models relative to the 42-day models. In the REMoxTB data, the CIs improve more than the point estimates shrink. This is also true for 3 out of 5 arms in the MAMS-TB data.
 
+# Differentiation of Regimens
+
+## Motivation
+
+We're not just interested in the estimation of TTP slopes. More importantly, we want to directly address whether improved estimation allows us to make "better" decisions, ideally earlier. Therefore, this section will look at the ability to differentiate "promising" regimens relative to control, where promising is assumed to mean those with *steeper changes in log10(TTP)* than control regimens.
+
+```{r}
+# Running the posterior distribution functions
+df_42m <- relative_function_mams(m_linear_mams_42, loq = 42)
+df_30m <- relative_function_mams(m_linear_mams_30, loq = 30)
+df_25m <- relative_function_mams(m_linear_mams_25, loq = 25)
+df_42r <- relative_function_remox(m_linear_remox_42, loq = 42)
+df_30r <- relative_function_remox(m_linear_remox_30, loq = 30)
+df_25r <- relative_function_remox(m_linear_remox_25, loq = 25)
+```
+
+## MAMS
+
+```{r}
+mams_differentiation <- bind_rows(mutate(df_42m$output, LOQ = "42 days"),
+                                  mutate(df_30m$output, LOQ = "30 days"),
+                                  mutate(df_25m$output, LOQ = "25 days")) 
+mams_differentiation %>% 
+  pivot_wider(names_from = LOQ, 
+              values_from = posterior.prob) %>% 
+  ggplot(aes(x = `Percent Change`)) + 
+  facet_wrap(~regimen) +
+  geom_line(aes(y = `42 days`,
+                col = "42 days")) +
+  geom_line(aes(y = `30 days`,
+                col = "30 days")) +
+  geom_line(aes(y = `25 days`,
+                col = "25 days")) +
+  # geom_segment(aes(xend = `Percent Change`, y = `42 days`, yend = `30 days`)) + 
+  # geom_segment(aes(xend = `Percent Change`, y = `42 days`, yend = `25 days`)) + 
+  # geom_point(aes(y = `42 days`,
+  #                col = "42 days"),
+  #            alpha = 0.6) +
+  # geom_point(aes(y = `30 days`,
+  #                col = "30 days"),
+  #            alpha = 0.6) +
+  # geom_point(aes(y = `25 days`,
+  #                col = "25 days"),
+  #            alpha = 0.6) +
+  labs(y = TeX("Pr(\\theta \\geq x)"),
+       x = "x, Relative change in log10(TTP) slope as compared to HRZE",
+       color = "LOQ") + 
+  scale_color_manual(values = ucsf_col_pal[c(2,8,9)])
+```
+
+```{r}
+mams_differentiation %>% 
+  group_by(regimen, percent.change) %>% 
+  mutate(which.limit.best = max(posterior.prob)) %>% 
+  mutate(which.LOQ.best = LOQ[which.limit.best==posterior.prob]) %>% 
+  group_by(which.LOQ.best) %>% 
+  # group_by(`Percent Change`,regimen, which.LOQ.best) %>% 
+  summarise(n())
+
+mams_differentiation %>% 
+  filter(`Percent Change` == 0) %>% 
+  group_by(regimen) %>% 
+  mutate(which.limit.best = max(posterior.prob)) %>% 
+  mutate(which.LOQ.best = LOQ[which.limit.best==posterior.prob]) %>% 
+  group_by(which.LOQ.best) %>% 
+  # group_by(`Percent Change`,regimen, which.LOQ.best) %>% 
+  summarise(n())
+```
+
+## Takeaway
+
+For the MAMS-TB data, using a 30-day limit of quantification improves the ability to differentiate regimens relative to the control. The estimated posterior probability (e.g., "confidence") that a given regimen's rate of change is as steep or steeper than then the control regimen's rate of change is best for nearly all regimens with a 30- rather than 42-day limit of quantification.
+
+## REMoxTb
+
+```{r}
+remox_differentiation <- bind_rows(mutate(df_42r$output, LOQ = "42 days"),
+                                   mutate(df_30r$output, LOQ = "30 days"),
+                                   mutate(df_25r$output, LOQ = "25 days")) 
+
+remox_differentiation %>% 
+   # pivot_wider(names_from = LOQ, 
+   #            values_from = posterior.prob) %>% 
+  dplyr::select(-percent.change) %>% 
+  ggplot(aes(x = LOQ, y = `Percent Change`, fill = posterior.prob)) + 
+  facet_wrap(~regimen) + 
+  geom_tile() + 
+  geom_text(aes(label = round(posterior.prob,3)),
+            col = "white") +
+  scale_fill_gradient(low = "darkgray",
+                      high = "darkgreen")
+```
+
+```{r}
+#| eval: false
+remox_differentiation %>% 
+  group_by(regimen, percent.change) %>% 
+  mutate(which.limit.best = max(posterior.prob)) %>% 
+  mutate(which.LOQ.best = LOQ[which.limit.best==posterior.prob]) %>% 
+  group_by(which.LOQ.best) %>% 
+  summarise(n())
+
+remox_differentiation %>% 
+  filter(`Percent Change` == 0) %>% 
+  group_by(regimen) %>% 
+  mutate(which.limit.best = max(posterior.prob)) %>% 
+  mutate(which.LOQ.best = LOQ[which.limit.best==posterior.prob]) %>% 
+  group_by(which.LOQ.best) %>% 
+  # group_by(`Percent Change`,regimen, which.LOQ.best) %>% 
+  summarise(n())
+```
+
+```{r}
+remox_differentiation %>% 
+  pivot_wider(names_from = LOQ, 
+              values_from = posterior.prob) %>% 
+  ggplot(aes(x = `Percent Change`)) + 
+  facet_wrap(~regimen,
+             ncol = 1) +
+    geom_line(aes(y = `42 days`,
+                col = "42 days")) +
+  geom_line(aes(y = `30 days`,
+                col = "30 days")) +
+  geom_line(aes(y = `25 days`,
+                col = "25 days")) +
+  # geom_segment(aes(xend = `Percent Change`, y = `42 days`, yend = `30 days`)) + 
+  # geom_point(aes(y = `42 days`,
+  #                col = "42 days")) +
+  # geom_point(aes(y = `30 days`,
+  #                col = "30 days")) +
+  labs(y = TeX("Pr(\\theta \\geq x)"),
+       x = "x, Relative change in log10(TTP) slope as compared to HRZE",
+       color = "LOQ") + 
+  scale_color_manual(values = ucsf_col_pal[c(2,8,9)])
+```
+
+## Takeaway
+
+The same trend as was observed in MAMS is not observed in the REMoxTB data, which is perplexing. The 42-day limit of quantification is observed to correlate with a stronger posterior probability of differentiation between the novel regimens and the control (HRZE).
+
+Should we be doing more of a grid-search or can we motivate this better with a S-N exploration first?
+
+# Signal-to-Noise 
+
+## Replicates (NC-002) {.scrollable}
+
+```{r}
+# df_NC_002 %>% 
+#   # Taking the first 8 weeks of observation
+#   filter(MBDY <= 7*8) %>% 
+#   # Setting NA values to 42 for plotting purposes
+#   mutate(dtp_42 = ifelse(is.na(MBSTRESN), 42, MBSTRESN),
+#          censored_42 = ifelse(is.na(MBSTRESN), "right", "none")) %>% 
+#   group_by(USUBJID, MBDY) %>% 
+#   # For those with multiple measurements, take the average
+#   summarise(mean_dtp = mean(dtp_42)) %>% 
+#   ggplot(aes(x = MBDY,y = mean_dtp)) +
+#   geom_line(aes(group = USUBJID),
+#             col = "darkgray",
+#             alpha = 0.6) +
+#   scale_x_continuous("Days since randomization", 
+#                      breaks = seq(0,52,by = 7)) + 
+#   geom_smooth(se=FALSE)
+
+p1 <- df_NC_002 %>% 
+  # Smaller dataset to work with
+  dplyr::select(USUBJID, MBDY, MBSTRESN, ACTARM) %>% 
+  distinct() %>% 
+  # Taking the first 8 weeks of observation
+  filter(MBDY <= 7*8 & MBDY >= 0) %>% 
+  # Setting NA values to 42 for plotting purposes
+  mutate(dtp_42 = ifelse(is.na(MBSTRESN), 42, MBSTRESN)) %>% #,
+         # censored_42 = ifelse(is.na(MBSTRESN), "right", "none")) %>% 
+  dplyr::select(-MBSTRESN) %>% 
+  # Identify replicates
+  group_by(USUBJID, MBDY) %>% 
+  mutate(replicate = row_number()) %>% 
+  pivot_wider(values_from = dtp_42,
+              names_from = replicate) %>%
+  # Keep replicates only (no singlets)
+  filter(!is.na(`1`) & !is.na(`2`)) %>% 
+  ggplot(aes(x = `1`, y = `2`, col = (`1` >= 42 | `2` >= 42))) +  
+  geom_abline(slope = 1, intercept = 0, lty = 1, col = "red") +
+  geom_point(alpha = 0.4) + 
+  scale_color_manual("Above LOD = 42", values = c("black", "orange")) + 
+  scale_x_log10(TeX("TTP$_1$, log10 scale"),
+                breaks = c(1,3,10,25,30,42)) + 
+  scale_y_log10(TeX("TTP$_2$, log10 scale"),
+                breaks = c(1,3,10,25,30,42)) + 
+  coord_fixed(xlim = c(1,60),
+              ylim = c(1,60)) + 
+  labs(title = "Study NC-002", subtitle = "Replicates") + 
+  theme(legend.position = "bottom")
+
+p1
+# library(ggExtra)
+# ggMarginal(p1, groupColour = TRUE, groupFill = TRUE)
+```
+
+
+```{r}
+#| eval: false
+ggsave(filename = here("graphs", "publication", "NC-002_replicate-point-plot.png"),
+       device = "png",
+       units = "in",
+       height = 7,
+       width = 7)
+```
+
+```{r}
+library(zoo)
+reps <- df_NC_002 %>% 
+  # Smaller dataset to work with
+  dplyr::select(USUBJID, MBDY, MBSTRESN, ACTARM) %>% 
+  distinct() %>% 
+  # Taking the first 8 weeks of observation
+  filter(MBDY <= 7*8 & MBDY >= 0) %>% 
+  # Setting NA values to 42 for plotting purposes
+  mutate(dtp_42 = ifelse(is.na(MBSTRESN), 42, MBSTRESN)) %>% #,
+         # censored_42 = ifelse(is.na(MBSTRESN), "right", "none")) %>% 
+  dplyr::select(-MBSTRESN) %>% 
+  # Identify replicates
+  group_by(USUBJID, MBDY) %>% 
+  mutate(replicate = row_number()) %>% 
+  pivot_wider(values_from = dtp_42,
+              names_from = replicate) %>%
+  # Keep replicates only (no singlets)
+  filter(!is.na(`1`) & !is.na(`2`)) %>% 
+  arrange(USUBJID, MBDY) 
+```
+
+## Replicates over time (NC-002)
+
+Not super satisfied with this plot, but I do like that it seems to confirm that the deviance in replicates increases as the expected value of TTP increases (e.g., with time).
+
+```{r}
+df_NC_002 %>% 
+  # Smaller dataset to work with
+  dplyr::select(USUBJID, MBDY, MBSTRESN, ACTARM) %>% 
+  distinct() %>% 
+  # Taking the first 8 weeks of observation
+  filter(MBDY <= 7*8 & MBDY >= 0) %>% 
+  # Setting NA values to 42 for plotting purposes
+  mutate(dtp_42 = ifelse(is.na(MBSTRESN), 42, MBSTRESN)) %>% #,
+         # censored_42 = ifelse(is.na(MBSTRESN), "right", "none")) %>% 
+  dplyr::select(-MBSTRESN) %>% 
+  # Identify replicates
+  group_by(USUBJID, MBDY) %>% 
+  mutate(replicate = row_number()) %>% 
+  pivot_wider(values_from = dtp_42,
+              names_from = replicate) %>% 
+  # Keep replicates only (no singlets)
+  filter(!is.na(`1`) & !is.na(`2`)) %>% 
+  # Calculating absolute difference in measurement (or ratio?)
+  mutate(abs_diff = abs(`1` - `2`)) %>% 
+  ggplot(aes(x = MBDY, y = abs_diff)) + 
+  geom_hline(yintercept = 0,
+             col = "red") +
+  geom_point(alpha = 0.5) +
+  # geom_violin(aes(group = ceiling(MBDY/7))) +
+  geom_smooth() +
+  labs(x = "Days since randomization", y = TeX("| TTP$_1$ - TTP$_2$ |"),
+       title = "NC-002", subtitle = "Replicates") + 
+  scale_x_continuous(breaks = seq(0,56,by = 7)) 
+```
+
 # Sensitivity Analyses
 
 ```{r}
@@ -1049,7 +1344,7 @@ t25 <- coef_mams_25s %>%
   group_by(key) %>%
   mode_hdi(value) %>%
   mutate_if(is.double, round, digits = 3) %>% 
-  mutate(lod = 25)
+  mutate(LOQ = 25)
 
 coef_mams_30s <-
     coef(m_linear_mams_30s, summary = F)$Treatm_arm %>%
@@ -1060,7 +1355,7 @@ t30 <- coef_mams_30s %>%
   group_by(key) %>%
   mode_hdi(value) %>%
   mutate_if(is.double, round, digits = 3) %>% 
-  mutate(lod = 30)
+  mutate(LOQ = 30)
 
 coef_mams_42s <-
     coef(m_linear_mams_42s, summary = F)$Treatm_arm %>%
@@ -1071,7 +1366,7 @@ coefs_mams <- coef_mams_42s %>%
   group_by(key) %>%
   mode_hdi(value) %>%
   mutate_if(is.double, round, digits = 3) %>%
-  mutate(lod = 42) %>% 
+  mutate(LOQ = 42) %>% 
   bind_rows(t30) %>%
   bind_rows(t25) %>%
   filter(str_detect(key, "weeks")) 
@@ -1083,13 +1378,13 @@ coefs_mams %>%
   kable(digits = 3,
         caption = "(MAMS-TB) Posterior group-level estimates of slope from the 30- and 42-day models (95% Credible Intervals).") %>%
   kable_styling(font_size = 16) %>%
-  pack_rows(group_label = "LOD = 42",
+  pack_rows(group_label = "LOQ = 42",
              start_row = 1,
              end_row = 5) %>%
-  pack_rows(group_label = "LOD = 30",
+  pack_rows(group_label = "LOQ = 30",
              start_row = 6,
              end_row = 10) %>%
-  pack_rows(group_label = "LOD = 25",
+  pack_rows(group_label = "LOQ = 25",
              start_row = 11,
              end_row = 15)
 ```
@@ -1106,7 +1401,7 @@ t25 <- coef_remox_25s %>%
   group_by(key) %>%
   mode_hdi(value) %>%
   mutate_if(is.double, round, digits = 3) %>% 
-  mutate(lod = 25)
+  mutate(LOQ = 25)
 
 coef_remox_30s <-
     coef(m_linear_remox_30s, summary = F)$treat %>%
@@ -1117,7 +1412,7 @@ t30 <- coef_remox_30s %>%
   group_by(key) %>%
   mode_hdi(value) %>%
   mutate_if(is.double, round, digits = 3) %>% 
-  mutate(lod = 30)
+  mutate(LOQ = 30)
 
 coef_remox_42s <-
     coef(m_linear_remox_42s, summary = F)$treat %>%
@@ -1128,7 +1423,7 @@ coefs_remox <- coef_remox_42s %>%
   group_by(key) %>%
   mode_hdi(value) %>%
   mutate_if(is.double, round, digits = 3) %>%
-  mutate(lod = 42) %>% 
+  mutate(LOQ = 42) %>% 
   bind_rows(t30) %>%
   bind_rows(t25) %>%
   filter(str_detect(key, "weeks"))
@@ -1140,13 +1435,13 @@ coefs_remox %>%
   kable(digits = 3,
         caption = "(REMoxTB) Posterior group-level estimates of slope from the 30- and 42-day models (95% Credible Intervals).") %>%
   kable_styling(font_size = 16) %>%
-  pack_rows(group_label = "LOD = 42",
+  pack_rows(group_label = "LOQ = 42",
              start_row = 1,
              end_row = 3) %>%
-  pack_rows(group_label = "LOD = 30",
+  pack_rows(group_label = "LOQ = 30",
              start_row = 4,
              end_row = 6) %>%
-  pack_rows(group_label = "LOD = 25",
+  pack_rows(group_label = "LOQ = 25",
              start_row = 7,
              end_row = 9)
 ```
@@ -1160,7 +1455,7 @@ bind_rows(mutate(coefs_mams, Data = "MAMS-TB"),
   mutate(key = str_remove(key, pattern = c("1. "))) %>%
   mutate(key = str_remove(key, pattern = c("2. "))) %>%
   mutate(key = str_remove(key, pattern = c("3. "))) %>%
-  mutate(`Censoring limit` = paste0(lod, " days")) %>% 
+  mutate(`Censoring limit` = paste0(LOQ, " days")) %>% 
   ggplot(aes(x = value, y = key, col = `Censoring limit`, shape = `Censoring limit`)) + 
   facet_grid(rows = vars(Data), scales = "free_y", space = "free_y") + 
   geom_errorbarh(aes(xmin = .lower, xmax = .upper),
@@ -1189,40 +1484,42 @@ ggsave(filename = here("graphs", "publication", "forest-plot_sensitivity.tiff"),
 ## Visualization (ALL)
 
 ```{r}
+#| fig-width: 10
+#| fig-height: 10
 mams_diff_s <- coefs_mams %>% 
-  # mutate(lod = c(rep(42, 5), rep(30,5), rep(25,5))) %>% 
+  # mutate(LOQ = c(rep(42, 5), rep(30,5), rep(25,5))) %>% 
   mutate(CI.width = abs(.upper - .lower)) %>% 
   group_by(key) %>% 
-  # Comparing each lod against 42
-  summarise(lod, 
-            point.estimate.ratio = value/value[lod == 42],
-            CI.width.ratio = CI.width/CI.width[lod == 42]) %>% 
+  # Comparing each LOQ against 42
+  summarise(LOQ, 
+            point.estimate.ratio = value/value[LOQ == 42],
+            CI.width.ratio = CI.width/CI.width[LOQ == 42]) %>% 
   mutate(coefficient = "gamma") %>% 
-  # Removing reference (lod = 42)
-  filter(lod != 42) %>% 
+  # Removing reference (LOQ = 42)
+  filter(LOQ != 42) %>% 
   mutate(data = "MAMS-TB (excluding baseline TTP)")
 
 remox_diff_s <- coefs_remox %>% 
-  # mutate(lod = c(rep(42, 3), rep(30,3))) %>% 
+  # mutate(LOQ = c(rep(42, 3), rep(30,3))) %>% 
   mutate(CI.width = abs(.upper - .lower)) %>% 
   group_by(key) %>% 
-  # Comparing each lod against 42
-  summarise(lod, 
-            point.estimate.ratio = value/value[lod == 42],
-            CI.width.ratio = CI.width/CI.width[lod == 42]) %>% 
+  # Comparing each LOQ against 42
+  summarise(LOQ, 
+            point.estimate.ratio = value/value[LOQ == 42],
+            CI.width.ratio = CI.width/CI.width[LOQ == 42]) %>% 
   mutate(coefficient = "gamma") %>% 
-  # Removing reference (lod = 42)
-  filter(lod != 42) %>% 
+  # Removing reference (LOQ = 42)
+  filter(LOQ != 42) %>% 
   mutate(data = "REMoxTB (excluding baseline TTP)")
 
-bind_rows(rename(mams_diff, regimen = key), 
-          rename(remox_diff, regimen = key),
-          rename(mams_diff_s, regimen = key), 
-          rename(remox_diff_s, regimen = key),
+bind_rows(rename(mams_diff, regimen = key),
+          rename(remox_diff,regimen = key),
+          rename(mams_diff_s, regimen = key),
+          rename(remox_diff_s,regimen = key),
           # mams_diff_nl,
           # remox_diff_nl
           ) %>% 
-  mutate(`Censoring Limit (days)` = as.factor(lod),
+  mutate(`Censoring Limit (days)` = as.factor(LOQ),
          `Dataset` = # + Model` = 
            data) %>% 
   ggplot(aes(x = point.estimate.ratio, y = CI.width.ratio)) +
@@ -1295,19 +1592,18 @@ plot(m_linear_mams_42, ask = FALSE)
 
 ## MAMS-TB: Nonlinear 25-day {.scrollable}
 
-<!-- ```{r} -->
-
-<!-- m_nonlinear_mams_25 -->
-
-<!-- ``` -->
+```{r}
+#| eval: false
+m_nonlinear_mams_25
+```
 
 ## MAMS-TB: Nonlinear 25-day posterior {.scrollable}
 
-<!-- ```{r} -->
-
-<!-- plot(m_nonlinear_mams_25, ask = FALSE) -->
-
-<!-- ``` -->
+```{r}
+#| eval: false
+m_nonlinear_mams_25
+plot(m_nonlinear_mams_25, ask = FALSE)
+```
 
 ## MAMS-TB: Nonlinear 30-day {.scrollable}
 
