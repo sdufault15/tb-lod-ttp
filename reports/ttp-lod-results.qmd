@@ -1201,23 +1201,8 @@ Should we be doing more of a grid-search or can we motivate this better with a S
 ## Replicates (NC-002) {.scrollable}
 
 ```{r}
-# df_NC_002 %>% 
-#   # Taking the first 8 weeks of observation
-#   filter(MBDY <= 7*8) %>% 
-#   # Setting NA values to 42 for plotting purposes
-#   mutate(dtp_42 = ifelse(is.na(MBSTRESN), 42, MBSTRESN),
-#          censored_42 = ifelse(is.na(MBSTRESN), "right", "none")) %>% 
-#   group_by(USUBJID, MBDY) %>% 
-#   # For those with multiple measurements, take the average
-#   summarise(mean_dtp = mean(dtp_42)) %>% 
-#   ggplot(aes(x = MBDY,y = mean_dtp)) +
-#   geom_line(aes(group = USUBJID),
-#             col = "darkgray",
-#             alpha = 0.6) +
-#   scale_x_continuous("Days since randomization", 
-#                      breaks = seq(0,52,by = 7)) + 
-#   geom_smooth(se=FALSE)
-
+#| fig-width: 10
+#| fig-height: 10
 p1 <- df_NC_002 %>% 
   # Smaller dataset to work with
   dplyr::select(USUBJID, MBDY, MBSTRESN, ACTARM) %>% 
@@ -1264,6 +1249,74 @@ ggsave(filename = here("graphs", "publication", "NC-002_replicate-point-plot.png
 ```
 
 ```{r}
+df_nc_200_reps <- df_NC_002 %>% 
+  # Smaller dataset to work with
+  dplyr::select(USUBJID, MBDY, MBSTRESN, ACTARM) %>% 
+  distinct() %>% 
+  # Taking the first 8 weeks of observation
+  filter(MBDY <= 7*8 & MBDY >= 0) %>% 
+  # Setting NA values to 42 for plotting purposes
+  mutate(dtp_42 = ifelse(is.na(MBSTRESN), 42, MBSTRESN)) %>% #,
+         # censored_42 = ifelse(is.na(MBSTRESN), "right", "none")) %>% 
+  dplyr::select(-MBSTRESN) %>% 
+  # Identify replicates
+  group_by(USUBJID, MBDY) %>% 
+  mutate(replicate = row_number()) %>% 
+  pivot_wider(values_from = dtp_42,
+              names_from = replicate) %>%
+  # Keep replicates only (no singlets)
+  filter(!is.na(`1`) & !is.na(`2`)) %>% 
+  rename(rep1 = `1`, rep2 = `2`)
+```
+
+Overall correlation within replicates: `r round(cor(df_nc_200_reps$rep1,df_nc_200_reps$rep2), 4)`
+
+```{r}
+df_nc_200_reps %>% 
+  ungroup() %>% 
+  mutate(cor5 = cor(rep1[rep1<=5], rep2[rep1<=5]),
+         cor5_10 = cor(rep1[between(rep1,5,10)], rep2[between(rep1,5,10)]),
+         cor10_15 = cor(rep1[between(rep1,10,15)], rep2[between(rep1,10,15)]),
+         cor15_20 = cor(rep1[between(rep1,15,20)], rep2[between(rep1,15,20)]),
+         cor20_25 = cor(rep1[between(rep1,20,25)], rep2[between(rep1,20,25)]),
+         cor25_30 = cor(rep1[between(rep1,25,30)], rep2[between(rep1,25,30)]),
+         cor30_35 = cor(rep1[between(rep1,30,35)], rep2[between(rep1,30,35)]),
+         cor35_42 = cor(rep1[between(rep1,35,42)], rep2[between(rep1,35,42)]))
+# Pairwise purity
+p1 <- df_nc_200_reps %>% 
+  mutate(resid = abs(rep1 - rep2)) %>% 
+  ggplot(aes(x = rep1, y = resid)) + 
+  geom_point(alpha = 0.4) + 
+  scale_x_log10() + 
+  labs(y ="Absolute difference in replicates",
+       x = TeX("TTP$_1$")) + 
+  coord_cartesian(xlim = c(1,42))
+p2 <- df_nc_200_reps %>% 
+  mutate(resid = abs(rep1 - rep2)) %>% 
+  ggplot(aes(x = rep2, y = resid)) + 
+  geom_point(alpha = 0.4) + 
+  scale_x_log10() +
+  labs(y ="Absolute difference in replicates",
+       x = TeX("TTP$_2$")) +
+  coord_cartesian(xlim = c(1,42))
+p1 / p2
+
+m1 <- lm(log10(rep1) ~ log10(rep2), data = df_nc_200_reps)
+plot(m1)
+```
+
+```{r}
+p1 + 
+  geom_segment(aes(x = 10, xend = 10, y = 0, yend = 10), lty = 3, col = "darkgray") +
+  # geom_segment(aes(x = 0, xend = 10, y = 10, yend = 10), lty = 3, col = "darkgray") +
+  geom_segment(aes(x = 25, xend = 25, y = 0, yend = 25), lty = 3, col = "darkgray") +
+  # geom_segment(aes(x = 0, xend = 25, y = 25, yend = 25), lty = 3, col = "darkgray") +
+  geom_segment(aes(x = 42, xend = 42, y = 0, yend = 42), lty = 3, col = "darkgray") 
+  # geom_segment(aes(x = 0, xend = 42, y = 42, yend = 42), lty = 3, col = "darkgray") 
+
+```
+
+```{r}
 library(zoo)
 reps <- df_NC_002 %>% 
   # Smaller dataset to work with
@@ -1283,6 +1336,59 @@ reps <- df_NC_002 %>%
   # Keep replicates only (no singlets)
   filter(!is.na(`1`) & !is.na(`2`)) %>% 
   arrange(USUBJID, MBDY) 
+```
+
+## Replicates (NC-002) {.scrollable}
+
+```{r}
+#| fig-width: 10
+#| fig-height: 10
+#| eval: false
+
+# NOT QUITE RIGHT - NEED TO SORT OUT REMAINING PROBLEMS WITH IDENTIFYING WHICH PARTICIPANTS HAD NEGATIVE SAMPLES AND WHICH HAD INCONCLUSIVE SAMPLES
+p1 <- df_NC_005 %>% 
+  # Smaller dataset to work with
+  dplyr::select(USUBJID, MBDY, MBSTRESN, MBSTRESC, ACTARM) %>% 
+  distinct() %>% 
+  # Taking the first 8 weeks of observation
+  filter(MBDY <= 7*8 & MBDY >= 0) %>% 
+  # Setting NA values to 42 for plotting purposes
+  mutate(dtp_42 = ifelse(is.na(MBSTRESN) & MBSTRESC == "NEGATIVE", 42, MBSTRESN)) %>% #,
+         # censored_42 = ifelse(is.na(MBSTRESN), "right", "none")) %>% 
+  dplyr::select(-MBSTRESN, -MBSTRESC) %>% 
+  # Identify replicates
+  group_by(USUBJID, MBDY) %>% 
+  mutate(replicate = row_number()) %>% 
+  pivot_wider(values_from = dtp_42,
+              names_from = replicate) %>% view()
+  # Keep replicates only (no singlets)
+  filter(!is.na(`1`) & !is.na(`2`)) %>% 
+  ggplot(aes(x = `1`, y = `2`, col = (`1` >= 42 | `2` >= 42))) +  
+  geom_abline(slope = 1, intercept = 0, lty = 1, col = "red") +
+  geom_point(alpha = 0.4) + 
+  scale_color_manual("Above LOD = 42", values = c("black", "orange")) + 
+  scale_x_log10(TeX("TTP$_1$, log10 scale"),
+                breaks = c(1,3,10,25,30,42)) + 
+  scale_y_log10(TeX("TTP$_2$, log10 scale"),
+                breaks = c(1,3,10,25,30,42)) + 
+  coord_fixed(xlim = c(1,60),
+              ylim = c(1,60)) + 
+  labs(title = "Study NC-002", subtitle = "Replicates") + 
+  theme(legend.position = "bottom")
+
+p1
+# library(ggExtra)
+# ggMarginal(p1, groupColour = TRUE, groupFill = TRUE)
+```
+
+
+```{r}
+#| eval: false
+ggsave(filename = here("graphs", "publication", "NC-005_replicate-point-plot.png"),
+       device = "png",
+       units = "in",
+       height = 7,
+       width = 7)
 ```
 
 ## Replicates over time (NC-002)
