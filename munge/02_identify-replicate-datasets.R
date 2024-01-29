@@ -6,7 +6,7 @@
 df_mams_replicates <- df_analysis_mams %>% 
   dplyr::select(arm, patient.id, weeks, dtp_42) %>% 
   group_by(patient.id, weeks) %>% 
-  distinct() %>% 
+  # distinct() %>% 
   mutate(replicate = row_number()) %>% 
   arrange(patient.id, weeks) %>% 
   pivot_wider(values_from = dtp_42,
