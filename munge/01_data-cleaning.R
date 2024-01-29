@@ -45,9 +45,10 @@ df_analysis_mams <- df_mams %>%
                 DV,
                 POS) %>% 
   # CHECK WIH ELIN REGARDING DV = -99
-  filter(weeks <= 8, !DV %in% c("-99", ".")) %>% 
+  filter(weeks <= 8, !DV %in% c("-99", 
+                                ".")) %>% 
   # FOLLOWING ELIN
-  mutate(DV = ifelse(DV == "0", 5, as.numeric(DV))) %>% 
+  mutate(DV = ifelse(DV == "0", 5, as.numeric(DV))) %>%
   mutate(dtp = DV/24) %>% 
   mutate(dtp_42 = ifelse(POS == "0", 42, dtp),
          censored_42 = ifelse(POS == "0", "right", "none")) %>% 
