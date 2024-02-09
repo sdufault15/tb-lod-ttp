@@ -63,3 +63,38 @@ df_analysis_mams <- df_mams %>%
 save(df_analysis_mams,
      file = here("data", "cleaned-data", 
                  paste0(Sys.Date(), "_mams-clean.RData")))
+
+
+#########################
+# NC-002 (M-Pa-Z)
+#########################
+
+load("~/Documents/ucsf-research-git/tb-pacts-general/generated-datasets/2024-02-06_tb-pacts-data-with-ttp-measures.RData")
+list2env(tb_pacts, envir = environment())
+
+df_analysis_nc002 <- df_NC_002 %>% 
+  filter(MBDY >= 0) %>% 
+  dplyr::select(USUBJID, MBDY, MBSTRESN, MBSTRESC, ACTARM) %>% 
+  distinct() %>% 
+  # Taking the first 8 weeks of observation
+  filter(MBDY <= 7*8 & MBDY >= 0,
+         # There are 2 odd observations where MCSTRESC = POSITIVE or is missing with no corresponding MBSTRESN, we'll remove
+         MBSTRESC != "POSITIVE",
+         !is.na(MBSTRESC)) %>% 
+  # Setting NA values to 42 for plotting purposes
+  mutate(weeks_rounded = floor(MBDY/7),
+         # Oddly, there are values of MBSTRESN > 42, we will reset these to 42
+         dtp_42 = ifelse(is.na(MBSTRESN) | MBSTRESN > 42, 42, MBSTRESN),
+         censored_42 = ifelse(MBSTRESC == ">42", "right", "none")) %>% 
+  # Adding in 30 day censoring (for modeling)
+  mutate(dtp_30 = ifelse(dtp_42 >= 30, 30, dtp_42),
+         censored_30 = ifelse(dtp_42 >= 30, "right", "none")) %>% 
+  # Adding in 25 day censoring (for modeling)
+  mutate(dtp_25 = ifelse(dtp_42 >= 25, 25, dtp_42),
+         censored_25 = ifelse(dtp_42 >= 25, "right", "none")) %>% 
+  dplyr::select(-MBSTRESN, -MBSTRESC) %>% 
+  mutate(weeks = MBDY/7)
+
+save(df_analysis_nc002,
+     file = here("data", "cleaned-data", 
+                 paste0(Sys.Date(), "_NC-002-clean.RData")))
