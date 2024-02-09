@@ -108,3 +108,51 @@ m_linear_remox_25 <- brm(log10(dtp_25) | cens(censored_25) ~ weeks + (1 + weeks 
 save(m_linear_remox_25,
      file = here("data", "model-generated", 
                  paste0(Sys.Date(), "_linear-remox-lod-25.RData")))
+
+###########################
+# Run the models on NC-002
+###########################
+load(here("data", "cleaned-data", "2024-02-09_NC-002-clean.RData"))
+# Model took 4.4 hours to run locally
+m_linear_nc002_42 <- brm(log10(dtp_42) | cens(censored_42) ~ weeks + (1 + weeks | USUBJID + ACTARM), # run the model
+                         data = df_analysis_nc002,
+                         init = 0,
+                         chains = 4,
+                         control = list(adapt_delta = 0.99),
+                         iter = 4000,
+                         backend = "cmdstanr", # attempt to improve convergence speed
+                         normalize = FALSE, # attempt to improve speed of convergence (https://discourse.mc-stan.org/t/faster-convergence/21532)
+                         prior = prior(normal(0,4), class = "Intercept"))
+save(m_linear_nc002_42,
+     file = here("data", "model-generated", 
+                 paste0(Sys.Date(), "_linear-nc002-lod-42.RData")))
+rm(m_linear_nc002_42)
+beepr::beep()
+
+m_linear_nc002_30 <- brm(log10(dtp_30) | cens(censored_30) ~ weeks + (1 + weeks | USUBJID + ACTARM), # run the model
+                         data = df_analysis_nc002,
+                         init = 0,
+                         chains = 4,
+                         control = list(adapt_delta = 0.99),
+                         iter = 4000,
+                         backend = "cmdstanr", # attempt to improve convergence speed
+                         normalize = FALSE, # attempt to improve speed of convergence (https://discourse.mc-stan.org/t/faster-convergence/21532)
+                         prior = prior(normal(0,4), class = "Intercept"))
+
+save(m_linear_nc002_30,
+     file = here("data", "model-generated", 
+                 paste0(Sys.Date(), "_linear-nc002-lod-30.RData")))
+
+m_linear_nc002_25 <- brm(log10(dtp_25) | cens(censored_25) ~ weeks + (1 + weeks | USUBJID + ACTARM), # run the model
+                         data = df_analysis_nc002,
+                         init = 0,
+                         chains = 4,
+                         control = list(adapt_delta = 0.99),
+                         iter = 4000,
+                         backend = "cmdstanr", # attempt to improve convergence speed
+                         normalize = FALSE, # attempt to improve speed of convergence (https://discourse.mc-stan.org/t/faster-convergence/21532)
+                         prior = prior(normal(0,4), class = "Intercept"))
+
+save(m_linear_nc002_25,
+     file = here("data", "model-generated", 
+                 paste0(Sys.Date(), "_linear-nc002-lod-25.RData")))
