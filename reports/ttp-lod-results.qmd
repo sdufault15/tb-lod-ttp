@@ -354,6 +354,9 @@ Panel B
 -   Individual trajectories are often high variance
 -   Individual trajectories tend to be increasing over time. There are very few that appear to start high/low and stay there. (e.g., treatment effect is observable)
 
+## NC-002
+
+
 ## Data Distribution v. Time
 
 \[WANT ALLUVIAL PLOT... \]
@@ -1100,8 +1103,20 @@ mams_differentiation %>%
   #            alpha = 0.6) +
   labs(y = TeX("Pr(\\theta \\geq x)"),
        x = "x, Relative change in log10(TTP) slope as compared to HRZE",
+       title = "Study: MAMS-TB",
        color = "LOQ") + 
-  scale_color_manual(values = ucsf_col_pal[c(2,8,9)])
+  scale_color_manual(values = ucsf_col_pal[c(2,8,9)]) + 
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| eval: false
+ggsave(filename = here("graphs", "publication", "MAMS_differentiation-regimens.png"),
+       device = "png",
+       units = "in",
+       height = 7,
+       width = 14)
+
 ```
 
 ```{r}
@@ -1186,8 +1201,19 @@ remox_differentiation %>%
   #                col = "30 days")) +
   labs(y = TeX("Pr(\\theta \\geq x)"),
        x = "x, Relative change in log10(TTP) slope as compared to HRZE",
-       color = "LOQ") + 
-  scale_color_manual(values = ucsf_col_pal[c(2,8,9)])
+       color = "LOQ",
+       title = "Study: REMoxTB") + 
+  scale_color_manual(values = ucsf_col_pal[c(2,8,9)]) + 
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| eval: false
+ggsave(filename = here("graphs", "publication", "REMOX-differentiation-regimens.png"),
+       device = "png",
+       units = "in",
+       height = 7,
+       width = 14)
 ```
 
 ## Takeaway
@@ -1198,12 +1224,15 @@ Should we be doing more of a grid-search or can we motivate this better with a S
 
 # Signal-to-Noise 
 
-## Replicates (NC-002) {.scrollable}
+```{r}
+load(here("data", "cleaned-data", "2023-12-14_replicate-datasets.RData"))
+list2env(df_replicates, environment())
+```
+
+## Replicates (MAMS-TB)
 
 ```{r}
-#| fig-width: 10
-#| fig-height: 10
-p1 <- df_NC_002 %>% 
+p0 <- df_mams_replicates %>% 
   ggplot(aes(x = rep1, y = rep2, col = (rep1 >= 42 | rep2 >= 42))) +  
   geom_abline(slope = 1, intercept = 0, lty = 1, col = "red") +
   geom_point(alpha = 0.4) + 
@@ -1214,10 +1243,42 @@ p1 <- df_NC_002 %>%
                 breaks = c(1,3,10,25,30,42)) + 
   coord_fixed(xlim = c(1,60),
               ylim = c(1,60)) + 
-  labs(title = "Study NC-002", subtitle = "Replicates") + 
+  labs(title = "Study: MAMS-TB", subtitle = "Replicates") + 
   theme(legend.position = "bottom")
 
-p1 #+ coord_cartesian(xlim = c(10,20), ylim = c(10,20))
+p0
+```
+
+```{r}
+df_mams_replicates %>% ggplot(aes(x = weeks)) +
+  geom_point(aes(y = rep1), col = "red", position = position_jitter(width = 0.2, height = 0)) +
+  geom_point(aes(y = rep2), col = "black", position = position_jitter(width = 0.2, height = 0)) 
+
+```
+
+## Replicates (NC-002) {.scrollable}
+
+```{r}
+#| fig-width: 10
+#| fig-height: 10
+p1 <- df_NC_002_replicates %>% 
+  filter(rep1 <= 42 & rep2 <= 42) %>% # removing the oddly coded rep = 60
+  ggplot(aes(x = rep1, y = rep2, col = (rep1 >= 42 | rep2 >= 42))) +  
+  geom_abline(slope = 1, intercept = 0, lty = 1, col = "red") +
+  geom_point(alpha = 0.4) + 
+  scale_color_manual("Above diagnostic LOD = 42", values = c("black", "orange")) + 
+  scale_x_log10(TeX("TTP$_1$, log10 scale"),
+                breaks = c(1,3,10,25,30,42)) + 
+  scale_y_log10(TeX("TTP$_2$, log10 scale"),
+                breaks = c(1,3,10,25,30,42)) + 
+  coord_fixed(xlim = c(1,42),
+              ylim = c(1,42)) + 
+  labs(title = "Study: NC-002 (M-Pa-Z)") + #, subtitle = "Replicates") + 
+  theme(legend.position = "bottom")
+
+# p0 + 
+  p1 #+
+  # plot_annotation(tag_levels = "A") #+ coord_cartesian(xlim = c(10,20), ylim = c(10,20))
 # library(ggExtra)
 # ggMarginal(p1, groupColour = TRUE, groupFill = TRUE)
 ```
@@ -1228,25 +1289,25 @@ p1 #+ coord_cartesian(xlim = c(10,20), ylim = c(10,20))
 ggsave(filename = here("graphs", "publication", "NC-002_replicate-point-plot.png"),
        device = "png",
        units = "in",
-       height = 7,
-       width = 7)
+       height = 6,
+       width = 6)
 ```
 
-Overall correlation within replicates: `r round(cor(df_NC_002$rep1,df_NC_002$rep2), 4)`
+Overall correlation within replicates: `r round(cor(df_NC_002_replicates$rep1,df_NC_002_replicates$rep2), 4)`
 
 ```{r}
-df_NC_002 %>% 
-  ungroup() %>% 
-  mutate(cor5 = cor(rep1[rep1<=5], rep2[rep1<=5]),
-         cor5_10 = cor(rep1[between(rep1,5,10)], rep2[between(rep1,5,10)]),
-         cor10_15 = cor(rep1[between(rep1,10,15)], rep2[between(rep1,10,15)]),
-         cor15_20 = cor(rep1[between(rep1,15,20)], rep2[between(rep1,15,20)]),
-         cor20_25 = cor(rep1[between(rep1,20,25)], rep2[between(rep1,20,25)]),
-         cor25_30 = cor(rep1[between(rep1,25,30)], rep2[between(rep1,25,30)]),
-         cor30_35 = cor(rep1[between(rep1,30,35)], rep2[between(rep1,30,35)]),
-         cor35_42 = cor(rep1[between(rep1,35,42)], rep2[between(rep1,35,42)]))
+# df_NC_002_replicates %>% 
+#   ungroup() %>% 
+#   mutate(cor5 = cor(rep1[rep1<=5], rep2[rep1<=5]),
+#          cor5_10 = cor(rep1[between(rep1,5,10)], rep2[between(rep1,5,10)]),
+#          cor10_15 = cor(rep1[between(rep1,10,15)], rep2[between(rep1,10,15)]),
+#          cor15_20 = cor(rep1[between(rep1,15,20)], rep2[between(rep1,15,20)]),
+#          cor20_25 = cor(rep1[between(rep1,20,25)], rep2[between(rep1,20,25)]),
+#          cor25_30 = cor(rep1[between(rep1,25,30)], rep2[between(rep1,25,30)]),
+#          cor30_35 = cor(rep1[between(rep1,30,35)], rep2[between(rep1,30,35)]),
+#          cor35_42 = cor(rep1[between(rep1,35,42)], rep2[between(rep1,35,42)]))
 # Pairwise purity
-p1 <- df_NC_002 %>% 
+p1 <- df_NC_002_replicates %>% 
   mutate(resid = abs(rep1 - rep2)) %>% 
   ggplot(aes(x = rep1, y = resid)) + 
   geom_point(alpha = 0.4) + 
@@ -1254,7 +1315,7 @@ p1 <- df_NC_002 %>%
   labs(y ="Absolute difference in replicates",
        x = TeX("TTP$_1$")) + 
   coord_cartesian(xlim = c(1,42))
-p2 <- df_NC_002 %>% 
+p2 <- df_NC_002_replicates %>% 
   mutate(resid = abs(rep1 - rep2)) %>% 
   ggplot(aes(x = rep2, y = resid)) + 
   geom_point(alpha = 0.4) + 
@@ -1264,7 +1325,7 @@ p2 <- df_NC_002 %>%
   coord_cartesian(xlim = c(1,42))
 p1 / p2
 
-m1 <- lm(log10(rep1) ~ log10(rep2), data = df_NC_002)
+m1 <- lm(log10(rep1) ~ log10(rep2), data = df_NC_002_replicates)
 plot(m1)
 ```
 
@@ -1301,7 +1362,7 @@ p1 <- df_NC_005 %>%
   group_by(USUBJID, MBDY) %>% 
   mutate(replicate = row_number()) %>% 
   pivot_wider(values_from = dtp_42,
-              names_from = replicate) %>% view()
+              names_from = replicate) %>% 
   # Keep replicates only (no singlets)
   filter(!is.na(`1`) & !is.na(`2`)) %>% 
   ggplot(aes(x = `1`, y = `2`, col = (`1` >= 42 | `2` >= 42))) +  
@@ -1312,8 +1373,8 @@ p1 <- df_NC_005 %>%
                 breaks = c(1,3,10,25,30,42)) + 
   scale_y_log10(TeX("TTP$_2$, log10 scale"),
                 breaks = c(1,3,10,25,30,42)) + 
-  coord_fixed(xlim = c(1,60),
-              ylim = c(1,60)) + 
+  coord_fixed(xlim = c(1,42),
+              ylim = c(1,42)) + 
   labs(title = "Study NC-002", subtitle = "Replicates") + 
   theme(legend.position = "bottom")
 
@@ -1365,6 +1426,151 @@ df_NC_002 %>%
   labs(x = "Days since randomization", y = TeX("| TTP$_1$ - TTP$_2$ |"),
        title = "NC-002", subtitle = "Replicates") + 
   scale_x_continuous(breaks = seq(0,56,by = 7)) 
+```
+
+## K-Fold Prediction Error {.scrollable}
+
+Using cross-validation to train and test our ability to predict TTP based on one of the observed replicates. 
+
+```{r}
+kfold_function <- function(df, k){
+  df$k_assignment <- sample(1:k, size = nrow(df), replace = TRUE)
+  
+  map_dfr(as.list(1:k), 
+          ~t_function(df, 
+                      kspec = .x))
+}
+
+t_function <- function(df, kspec){
+  train <- df %>% 
+    filter(k_assignment != kspec)
+  test <- df %>% 
+    filter(k_assignment == kspec)
+  
+  mtemp <- train %>% 
+    # Predict rep2 as a function of rep1
+    lm(log10(rep2) ~ log10(rep1), 
+       data = .)
+  
+  test$rep2.hat <- predict(mtemp, newdata = test)
+  return(test)
+}
+
+prediction_nc <- kfold_function(filter(ungroup(df_NC_002_replicates), rep1 < 42), k = 5)
+
+p2 <- prediction_nc %>% 
+  filter(rep2 <= 42 & rep1 <= 42) %>% 
+  ungroup() %>% 
+  mutate(pred.error = 100*(abs(rep2 - 10^rep2.hat)/rep2)) %>% 
+  arrange(rep1) %>% arrange(rep1) %>% 
+  group_by(cats_rep1 = cut(rep1, 
+                           breaks = quantile(rep1, probs = seq(0,1,by=0.1)),
+                           include.lowest = TRUE)) %>% 
+  mutate(mean_cat_error_10 = mean(pred.error)) %>% 
+  mutate(over.lim.pred.error = ifelse(pred.error > 100, 100, pred.error),
+         over.lim.detect = ifelse(pred.error >100, TRUE, FALSE)) %>% 
+  group_by(cats_rep1 = cut(rep1, breaks = quantile(rep1, probs = seq(0,1,by=0.05)))) %>% 
+  mutate(mean_cat_error_20 = mean(pred.error)) %>% 
+  ggplot(aes(x = rep1, y = over.lim.pred.error)) + 
+  geom_point(alpha = 0.2,
+             aes(shape = over.lim.detect,
+                 col = over.lim.detect))+#,
+             # col = ucsf_col_pal[3]) +
+  geom_smooth(se = FALSE,
+              lwd = 1,
+              lty = 2,
+              col = "black") +
+  geom_line(aes(y = mean_cat_error_10),
+            col = ucsf_col_pal[3],
+            lwd = 1) +
+  # coord_cartesian(xlim = c(1,120),ylim = c(0,100)) +
+  coord_cartesian(xlim = c(1,42),ylim = c(0,100)) +
+  scale_x_log10(breaks = c(1,3, 10, 25, 30, 42)) +
+  scale_y_continuous(breaks = c(seq(0,100,by = 10), 150,200),
+                     expand = c(0,0.75)) +
+  scale_color_manual(values = c(ucsf_col_pal[c(3,7)])) +
+  theme(legend.position = "none") + 
+  # annotate(geom = "text",
+  #          x = 42, 
+  #          y = 20,
+  #          hjust = -0.1,
+  #          label = TeX("Mean %PE\nwithin deciles of $TTP_1$"),
+  #          col = ucsf_col_pal[3]) +
+  labs(x = TeX("TTP$_1$, log10 scale"),
+       y = TeX("Absolute Prediction Error (%): $100\\times \\frac{| TTP_2 - \\widehat{TTP}_2 |}{TTP_2}"),
+       # subtitle = "5-fold CV",
+       title = "Study: NC-002 (M-Pa-Z)") 
+```
+
+```{r}
+#| eval: false
+ggsave(here("graphs", "publication", "NC-002_replicate-prediction-plot.png"),
+       device = "png",
+       width = 9,
+       height = 4.75,
+       units = "in")
+```
+
+```{r}
+(p1 + theme(legend.position = "none",plot.title = element_blank())) + 
+  (p2 + theme(plot.title = element_blank())) +
+  plot_layout(widths = c(1,1.65),
+              height = 1) + 
+  plot_annotation(tag_levels = "A")
+```
+
+```{r}
+#| eval: false
+ggsave(here("graphs", "publication", "NC-002_replicates_point-AND-prediction.png"),
+       device = "png",
+       width = 14,
+       height = 5.5,
+       units = "in")
+```
+
+## Average Absolute Prediction Error Tables {.scrollable}
+
+```{r}
+prediction_nc %>% 
+  filter(rep2 <= 42 & rep1 <= 42) %>% 
+  ungroup() %>% 
+  mutate(pred.error = 100*(abs(rep2 - 10^rep2.hat)/rep2)) %>% 
+  arrange(rep1) %>% arrange(rep1) %>% 
+  group_by(cats_rep1 = cut(rep1, 
+                           breaks = quantile(rep1, probs = seq(0,1,by=0.1)),
+                           include.lowest = TRUE)) %>% 
+  mutate(mean_cat_error_10 = mean(pred.error)) %>% 
+  mutate(over.lim.pred.error = ifelse(pred.error > 100, 100, pred.error),
+         over.lim.detect = ifelse(pred.error >100, TRUE, FALSE)) %>% 
+  group_by(cats_rep1 = cut(rep1, 
+                           breaks = quantile(rep1, probs = seq(0,1,by=0.05)),
+                           include.lowest = TRUE)) %>% 
+  mutate(mean_cat_error_20 = mean(pred.error)) %>%
+  dplyr::select(cats_rep1, mean_cat_error_10, mean_cat_error_20) %>% 
+  distinct() %>% 
+  mutate(mean_cat_error_10 = cell_spec(format(round(mean_cat_error_10,2),nsmall=2), color = ifelse(mean_cat_error_10 > 15, "red", "black")),
+         mean_cat_error_20 = cell_spec(format(round(mean_cat_error_20,2),nsmall=2), color = ifelse(mean_cat_error_20 > 15, "red", "black"))) %>% 
+  rename(`Mean PE (%), deciles` = mean_cat_error_10,
+         `Mean PE (%), 20 quantiles` = mean_cat_error_20) %>% 
+  kable(escape = FALSE)  %>% 
+  kable_styling() 
+
+p1 + p2
+```
+
+```{r}
+m_loess <- prediction_nc %>% 
+  filter(rep2 <= 42 & rep1 <= 42) %>% 
+  ungroup() %>% 
+  mutate(pred.error = 100*(abs(rep2 - 10^rep2.hat)/rep2)) %>% 
+  loess(formula = pred.error ~ rep1)
+data.frame(ttp1 = 2:40) %>% 
+  mutate(mean.pred.error.loess = predict(m_loess,
+                                         newdata = ttp1)) %>% 
+  mutate(mean.pred.error.loess = cell_spec(format(round(mean.pred.error.loess,2),nsmall=2), color = ifelse(mean.pred.error.loess > 15, "red", "black"))) %>% 
+  rename(`Mean PE (%), loess` = mean.pred.error.loess) %>% 
+  kable(escape = FALSE)  %>% 
+  kable_styling() 
 ```
 
 # Sensitivity Analyses
