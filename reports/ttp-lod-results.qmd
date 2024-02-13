@@ -30,8 +30,11 @@ source(here("lib", "ucsf-color-palette.R"))
 source(here("lib", "relative-function-mams.R")) # used for posterior comparison of regimens v control
 source(here("lib", "relative-function-remox.R")) # used for posterior comparison of regimens v control
 source(here("lib", "relative-function-nc002.R"))
-load(here("data", "cleaned-data", "2023-08-15_remoxtb-clean.RData"))
-load(here("data", "cleaned-data", "2023-08-15_mams-clean.RData"))
+load(here("data", "cleaned-data", "2024-02-09_remoxtb-clean.RData"))
+load(here("data", "cleaned-data", "2024-02-09_mams-clean.RData"))
+load(here("data", "cleaned-data", "2024-02-13_TBTC-S29-clean.RData"))
+load(here("data", "cleaned-data", "2024-02-13_TBTC-S29x-clean.RData"))
+load(here("data", "cleaned-data", "2024-02-09_NC-002-clean.RData"))
 theme_set(ggpubr::theme_pubr())
 ```
 
@@ -86,7 +89,7 @@ load("~/Documents/ucsf-research-git/tb-pacts-general/generated-datasets/2024-02-
 list2env(tb_pacts, envir = environment())
 ```
 
-## TB-PACTS NC-005  M-Pa-Z-B
+## TB-PACTS NC-005 M-Pa-Z-B
 
 ## TB-PACTS NC-006 (STAND)
 
@@ -364,7 +367,6 @@ Panel B
 
 ## NC-002
 
-
 ## Data Distribution v. Time
 
 \[WANT ALLUVIAL PLOT... \]
@@ -533,18 +535,8 @@ ggsave(file = here("graphs", "descriptive", "02_alluvial-combined.tiff"),
 ```
 
 ```{r}
-df_nc002_flow <- df_NC_002 %>% 
-  filter(MBDY >= 0) %>% 
-  dplyr::select(patient.id = USUBJID, MBDY, MBSTRESN, ACTARM) %>% 
-  distinct() %>% 
-  # Taking the first 8 weeks of observation
-  filter(MBDY <= 7*8 & MBDY >= 0) %>% 
-  # Setting NA values to 42 for plotting purposes
-  mutate(weeks_rounded = floor(MBDY/7),
-         # Oddly, there are values of MBSTRESN > 42, we will reset these to 42
-         dtp_42 = ifelse(is.na(MBSTRESN) | MBSTRESN > 42, 42, MBSTRESN)) %>% 
-  dplyr::select(-MBSTRESN) %>% 
-  group_by(patient.id, weeks_rounded) %>% 
+df_nc002_flow <- df_analysis_nc002 %>% 
+  group_by(patient.id = USUBJID, weeks_rounded) %>% 
   mutate(dtp_mean = mean(dtp_42, na.rm = TRUE),
          dtp_min = min(dtp_42, na.rm = TRUE)) %>% # For individuals who have more than one observed TTP in a week
   mutate(category = case_when(dtp_min <= 25 ~ "TTP \u2264 25",
@@ -553,7 +545,7 @@ df_nc002_flow <- df_NC_002 %>%
                               dtp_min >= 42 | is.na(dtp_min) ~ "TTP \u2265 42")) %>% 
   mutate(category = factor(category, levels = c("TTP \u2265 42", "30 < TTP < 42", "25 < TTP \u2264 30", "TTP \u2264 25"))) %>% 
   dplyr::select(patient.id, weeks_rounded, category) %>% 
-  distinct() #%>% arrange(trial_no, weeks_rounded) 
+  distinct() 
 
 alluv_nc002 <- ggplot(df_nc002_flow, aes(x = weeks_rounded, stratum = category, alluvium = patient.id, fill = category)) + 
   geom_flow() + 
@@ -566,16 +558,7 @@ alluv_nc002 <- ggplot(df_nc002_flow, aes(x = weeks_rounded, stratum = category, 
        title = "NC-002 (M-Pa-Z)") + 
   theme(legend.title = element_blank())
 
-df_nc005_flow <- df_NC_005 %>% 
-  filter(MBDY >= 0) %>% 
-  dplyr::select(patient.id = USUBJID, MBDY, MBSTRESN, MBSTRESC, ACTARM) %>% 
-  distinct() %>% 
-  # Taking the first 8 weeks of observation
-  filter(MBDY <= 7*8 & MBDY >= 0) %>%
-  # Setting NA values to 42 for plotting purposes
-  mutate(weeks_rounded = floor(MBDY/7),
-         dtp_42 = ifelse(MBSTRESC == "NEGATIVE", 42, MBSTRESN)) %>%
-  dplyr::select(-MBSTRESN) %>% #, -MBSTRESC) %>% 
+df_nc005_flow <- df_analysis_nc005 %>% 
   group_by(patient.id, weeks_rounded) %>% 
   mutate(dtp_mean = mean(dtp_42, na.rm = TRUE),
          dtp_min = min(dtp_42, na.rm = TRUE)) %>% # For individuals who have more than one observed TTP in a week
@@ -630,16 +613,7 @@ alluv_nc006 <- ggplot(df_nc006_flow, aes(x = weeks_rounded, stratum = category, 
        title = "NC-006 (STAND)") + 
   theme(legend.title = element_blank())
 
-df_st29_flow <- df_TBTC_S29x %>% 
-  filter(MBDY >= 0) %>% 
-  dplyr::select(patient.id = USUBJID, MBDY, MBSTRESN, MBSTRESC, MBTSTDTL) %>% 
-  distinct() %>% 
-  # Taking the first 8 weeks of observation
-  filter(MBDY <= 7*8 & MBDY >= 0) %>%
-  # Setting NA values to 42 for plotting purposes
-  mutate(weeks_rounded = floor(MBDY/7),
-         dtp_42 = ifelse(MBSTRESC == "NO GROWTH", 42, MBSTRESN)) %>%
-  dplyr::select(-MBSTRESN) %>% #, -MBSTRESC) %>% 
+df_st29_flow <- df_analysis_s29 %>% 
   group_by(patient.id, weeks_rounded) %>% 
   mutate(dtp_mean = mean(dtp_42, na.rm = TRUE),
          dtp_min = min(dtp_42, na.rm = TRUE)) %>% #arrange(patient.id, weeks_rounded) %>% view()# For individuals who have more than one observed TTP in a week
@@ -651,7 +625,7 @@ df_st29_flow <- df_TBTC_S29x %>%
   dplyr::select(patient.id, weeks_rounded, category) %>% 
   distinct() #%>% arrange(trial_no, weeks_rounded) 
 
-alluv_st29 <- ggplot(filter(df_st29_flow, weeks_rounded %in% c(0,2,4,6)), aes(x = weeks_rounded, stratum = category, alluvium = patient.id, fill = category)) + 
+alluv_st29 <- ggplot(filter(df_st29_flow, weeks_rounded %in% c(0,2,4,6,8)), aes(x = weeks_rounded, stratum = category, alluvium = patient.id, fill = category)) + 
   geom_flow() + 
   scale_fill_manual(values = c("darkgray",ucsf_col_pal[c(2,9)],"lightgray")) +
   scale_x_continuous(breaks = seq(0,8,by=2),
@@ -660,13 +634,36 @@ alluv_st29 <- ggplot(filter(df_st29_flow, weeks_rounded %in% c(0,2,4,6)), aes(x 
   geom_stratum(col = "white") +
   labs(x = "Weeks from randomization",
        y = "No. samples",
-       title = "Study 29X") + 
+       title = "Study 29") + 
   theme(legend.title = element_blank())
 
+df_st29x_flow <- df_analysis_s29x %>% 
+  group_by(patient.id, weeks_rounded) %>% 
+  mutate(dtp_mean = mean(dtp_42, na.rm = TRUE),
+         dtp_min = min(dtp_42, na.rm = TRUE)) %>% #arrange(patient.id, weeks_rounded) %>% view()# For individuals who have more than one observed TTP in a week
+  mutate(category = case_when(dtp_mean <= 25 ~ "TTP \u2264 25",
+                              dtp_mean > 25 & dtp_mean <= 30 ~ "25 < TTP \u2264 30",
+                              dtp_mean > 30 & dtp_mean < 42 ~ "30 < TTP < 42",
+                              dtp_mean >= 42 | is.na(dtp_mean) ~ "TTP \u2265 42")) %>% 
+  mutate(category = factor(category, levels = c("TTP \u2265 42", "30 < TTP < 42", "25 < TTP \u2264 30", "TTP \u2264 25"))) %>% 
+  dplyr::select(patient.id, weeks_rounded, category) %>% 
+  distinct() #%>% arrange(trial_no, weeks_rounded) 
+
+alluv_st29x <- ggplot(filter(df_st29x_flow, weeks_rounded %in% c(0,2,4,6,8)), aes(x = weeks_rounded, stratum = category, alluvium = patient.id, fill = category)) + 
+  geom_flow() + 
+  scale_fill_manual(values = c("darkgray",ucsf_col_pal[c(2,9)],"lightgray")) +
+  scale_x_continuous(breaks = seq(0,8,by=2),
+                     labels = seq(0,8,by=2)) + 
+  coord_cartesian(xlim = c(0,8)) + 
+  geom_stratum(col = "white") +
+  labs(x = "Weeks from randomization",
+       y = "No. samples",
+       title = "Study 29") + 
+  theme(legend.title = element_blank())
 ```
 
 ```{r}
-(alluv_remox_2 + alluv_mams_2) / (alluv_nc002 + alluv_nc005) / (alluv_nc006 + alluv_st29) + 
+(alluv_remox_2 + alluv_mams_2) / (alluv_nc002 + alluv_nc005) / (alluv_nc006 + alluv_st29 + alluv_st29x) + 
   plot_annotation(tag_levels = "A") + 
   plot_layout(guides = "collect") &
   theme(legend.position = "right")
@@ -961,6 +958,7 @@ coefs_remox %>%
 ```
 
 ## NC-002 (M-Pa-Z)
+
 ```{r}
 coef_nc002_25 <-
     coef(m_linear_nc002_25, summary = F)$ACTARM %>% 
@@ -1512,7 +1510,7 @@ ggsave(filename = here("graphs", "publication",
        width = 14)
 ```
 
-# Signal-to-Noise 
+# Signal-to-Noise
 
 ```{r}
 load(here("data", "cleaned-data", "2023-12-14_replicate-datasets.RData"))
@@ -1551,15 +1549,15 @@ df_mams_replicates %>% ggplot(aes(x = weeks)) +
 ```{r}
 #| fig-width: 10
 #| fig-height: 10
-p1 <- df_NC_002_replicates %>% 
+p1_reps <- df_NC_002_replicates %>% 
   filter(rep1 <= 42 & rep2 <= 42) %>% # removing the oddly coded rep = 60
   ggplot(aes(x = rep1, y = rep2, col = (rep1 >= 42 | rep2 >= 42))) +  
   geom_abline(slope = 1, intercept = 0, lty = 1, col = "red") +
-  geom_point(alpha = 0.4) + 
+  geom_point(alpha = 0.2) + 
   scale_color_manual("Above diagnostic LOD = 42", values = c("black", "orange")) + 
-  scale_x_log10(TeX("TTP$_1$, log10 scale"),
+  scale_x_log10(TeX("TTP$_1$, log$_{10}$ scale"),
                 breaks = c(1,3,10,25,30,42)) + 
-  scale_y_log10(TeX("TTP$_2$, log10 scale"),
+  scale_y_log10(TeX("TTP$_2$, log$_{10}$ scale"),
                 breaks = c(1,3,10,25,30,42)) + 
   coord_fixed(xlim = c(1,42),
               ylim = c(1,42)) + 
@@ -1567,12 +1565,11 @@ p1 <- df_NC_002_replicates %>%
   theme(legend.position = "bottom")
 
 # p0 + 
-  p1 #+
+  p1_reps #+
   # plot_annotation(tag_levels = "A") #+ coord_cartesian(xlim = c(10,20), ylim = c(10,20))
 # library(ggExtra)
 # ggMarginal(p1, groupColour = TRUE, groupFill = TRUE)
 ```
-
 
 ```{r}
 #| eval: false
@@ -1716,7 +1713,6 @@ p1
 # ggMarginal(p1, groupColour = TRUE, groupFill = TRUE)
 ```
 
-
 ```{r}
 #| eval: false
 ggsave(filename = here("graphs", "publication", "NC-005_replicate-point-plot.png"),
@@ -1763,7 +1759,7 @@ df_NC_002 %>%
 
 ## K-Fold Prediction Error {.scrollable}
 
-Using cross-validation to train and test our ability to predict TTP based on one of the observed replicates. 
+Using cross-validation to train and test our ability to predict TTP based on one of the observed replicates.
 
 ```{r}
 kfold_function <- function(df, k){
@@ -1794,7 +1790,7 @@ prediction_nc <- kfold_function(filter(ungroup(df_NC_002_replicates), rep1 < 42)
 p2 <- prediction_nc %>% 
   filter(rep2 <= 42 & rep1 <= 42) %>% 
   ungroup() %>% 
-  mutate(pred.error = 100*(abs(rep2 - 10^rep2.hat)/rep2)) %>% 
+  mutate(pred.error = 100*(abs(log10(rep2) - rep2.hat)/log10(rep2))) %>% 
   arrange(rep1) %>% arrange(rep1) %>% 
   group_by(cats_rep1 = cut(rep1, 
                            breaks = quantile(rep1, probs = seq(0,1,by=0.1)),
@@ -1809,19 +1805,20 @@ p2 <- prediction_nc %>%
              aes(shape = over.lim.detect,
                  col = over.lim.detect))+#,
              # col = ucsf_col_pal[3]) +
-  geom_smooth(se = FALSE,
+  geom_smooth(aes(y = pred.error),
+              se = FALSE,
               lwd = 1,
               lty = 2,
               col = "black") +
   geom_line(aes(y = mean_cat_error_10),
-            col = ucsf_col_pal[3],
+            col = "black",#ucsf_col_pal[3],
             lwd = 1) +
   # coord_cartesian(xlim = c(1,120),ylim = c(0,100)) +
   coord_cartesian(xlim = c(1,42),ylim = c(0,100)) +
   scale_x_log10(breaks = c(1,3, 10, 25, 30, 42)) +
   scale_y_continuous(breaks = c(seq(0,100,by = 10), 150,200),
                      expand = c(0,0.75)) +
-  scale_color_manual(values = c(ucsf_col_pal[c(3,7)])) +
+  scale_color_manual(values = c("darkgray", ucsf_col_pal[c(7)])) +
   theme(legend.position = "none") + 
   # annotate(geom = "text",
   #          x = 42, 
@@ -1829,14 +1826,15 @@ p2 <- prediction_nc %>%
   #          hjust = -0.1,
   #          label = TeX("Mean %PE\nwithin deciles of $TTP_1$"),
   #          col = ucsf_col_pal[3]) +
-  labs(x = TeX("TTP$_1$, log10 scale"),
-       y = TeX("Absolute Prediction Error (%): $100\\times \\frac{| TTP_2 - \\widehat{TTP}_2 |}{TTP_2}"),
+  labs(x = TeX("TTP$_1$, log$_{10}$ scale"),
+       y = TeX("Absolute Prediction Error (%): $100\\times \\frac{| log_{10}TTP_2 - log_{10}\\widehat{TTP}_2 |}{log_{10}TTP_2}"),
        # subtitle = "5-fold CV",
        title = "Study: NC-002 (M-Pa-Z)") 
 ```
 
 ```{r}
 #| eval: false
+p2
 ggsave(here("graphs", "publication", "NC-002_replicate-prediction-plot.png"),
        device = "png",
        width = 9,
@@ -1845,7 +1843,7 @@ ggsave(here("graphs", "publication", "NC-002_replicate-prediction-plot.png"),
 ```
 
 ```{r}
-(p1 + theme(legend.position = "none",plot.title = element_blank())) + 
+(p1_reps + theme(legend.position = "none",plot.title = element_blank())) + 
   (p2 + theme(plot.title = element_blank())) +
   plot_layout(widths = c(1,1.65),
               height = 1) + 
@@ -1867,7 +1865,7 @@ ggsave(here("graphs", "publication", "NC-002_replicates_point-AND-prediction.png
 prediction_nc %>% 
   filter(rep2 <= 42 & rep1 <= 42) %>% 
   ungroup() %>% 
-  mutate(pred.error = 100*(abs(rep2 - 10^rep2.hat)/rep2)) %>% 
+  mutate(pred.error = 100*(abs(log10(rep2) - rep2.hat)/log10(rep2))) %>% 
   arrange(rep1) %>% arrange(rep1) %>% 
   group_by(cats_rep1 = cut(rep1, 
                            breaks = quantile(rep1, probs = seq(0,1,by=0.1)),
@@ -1881,26 +1879,26 @@ prediction_nc %>%
   mutate(mean_cat_error_20 = mean(pred.error)) %>%
   dplyr::select(cats_rep1, mean_cat_error_10, mean_cat_error_20) %>% 
   distinct() %>% 
-  mutate(mean_cat_error_10 = cell_spec(format(round(mean_cat_error_10,2),nsmall=2), color = ifelse(mean_cat_error_10 > 15, "red", "black")),
-         mean_cat_error_20 = cell_spec(format(round(mean_cat_error_20,2),nsmall=2), color = ifelse(mean_cat_error_20 > 15, "red", "black"))) %>% 
+  mutate(mean_cat_error_10 = cell_spec(format(round(mean_cat_error_10,2),nsmall=2), color = ifelse(mean_cat_error_10 > 5, "red", "black")),
+         mean_cat_error_20 = cell_spec(format(round(mean_cat_error_20,2),nsmall=2), color = ifelse(mean_cat_error_20 > 5, "red", "black"))) %>% 
   rename(`Mean PE (%), deciles` = mean_cat_error_10,
          `Mean PE (%), 20 quantiles` = mean_cat_error_20) %>% 
   kable(escape = FALSE)  %>% 
   kable_styling() 
 
-p1 + p2
+p1_reps + p2
 ```
 
 ```{r}
 m_loess <- prediction_nc %>% 
   filter(rep2 <= 42 & rep1 <= 42) %>% 
   ungroup() %>% 
-  mutate(pred.error = 100*(abs(rep2 - 10^rep2.hat)/rep2)) %>% 
+  mutate(pred.error = 100*(abs(log10(rep2) - rep2.hat)/log10(rep2))) %>% 
   loess(formula = pred.error ~ rep1)
 data.frame(ttp1 = 2:40) %>% 
   mutate(mean.pred.error.loess = predict(m_loess,
                                          newdata = ttp1)) %>% 
-  mutate(mean.pred.error.loess = cell_spec(format(round(mean.pred.error.loess,2),nsmall=2), color = ifelse(mean.pred.error.loess > 15, "red", "black"))) %>% 
+  mutate(mean.pred.error.loess = cell_spec(format(round(mean.pred.error.loess,2),nsmall=2), color = ifelse(mean.pred.error.loess > 5, "red", "black"))) %>% 
   rename(`Mean PE (%), loess` = mean.pred.error.loess) %>% 
   kable(escape = FALSE)  %>% 
   kable_styling() 
