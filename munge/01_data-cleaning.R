@@ -98,3 +98,81 @@ df_analysis_nc002 <- df_NC_002 %>%
 save(df_analysis_nc002,
      file = here("data", "cleaned-data", 
                  paste0(Sys.Date(), "_NC-002-clean.RData")))
+
+#########################
+# NC-005 (M-Pa-Z-B)
+#########################
+
+df_analysis_nc005 <- df_NC_005 %>% 
+  filter(MBDY >= 0) %>% 
+  dplyr::select(patient.id = USUBJID, MBDY, MBSTRESN, MBSTRESC, ACTARM) %>% 
+  distinct() %>% 
+  # Taking the first 8 weeks of observation
+  filter(MBDY <= 7*8 & MBDY >= 0) %>%
+  mutate(weeks_rounded = floor(MBDY/7),
+         dtp_42 = ifelse(MBSTRESC == "NEGATIVE" | MBSTRESN > 42, 42, MBSTRESN),
+         censored_42 = ifelse(MBSTRESC == "NEGATIVE" | MBSTRESN > 42, "right", "none")) %>% 
+  # Adding in 30 day censoring (for modeling)
+  mutate(dtp_30 = ifelse(dtp_42 >= 30, 30, dtp_42),
+         censored_30 = ifelse(dtp_42 >= 30, "right", "none")) %>% 
+  # Adding in 25 day censoring (for modeling)
+  mutate(dtp_25 = ifelse(dtp_42 >= 25, 25, dtp_42),
+         censored_25 = ifelse(dtp_42 >= 25, "right", "none")) %>% 
+  dplyr::select(-MBSTRESN, -MBSTRESC) %>% 
+  mutate(weeks = MBDY/7)
+
+save(df_analysis_nc005,
+     file = here("data", "cleaned-data", 
+                 paste0(Sys.Date(), "_NC-005-clean.RData")))
+
+#########################
+# Study 29 and 29X 
+#########################
+
+df_analysis_s29 <- df_TBTC_S29 %>% 
+  filter(MBSTRESC == "NO GROWTH" | !is.na(MBSTRESN)) %>% 
+  dplyr::select(patient.id = USUBJID, MBDY, MBSTRESN, MBSTRESC, MBTSTDTL, VISIT) %>% 
+  distinct() %>% 
+  # Taking the first 8 weeks of observation
+  filter(MBDY < 7*9 & MBDY >= 0 | VISIT == "SCREENING") %>% 
+  mutate(weeks_rounded = ifelse(MBDY > 0,floor(MBDY/7), 0),
+         dtp_42 = ifelse(MBSTRESC == "NO GROWTH", 42, MBSTRESN),
+         censored_42 = ifelse(MBSTRESC == "NO GROWTH", "right", "none")) %>% 
+  # Adding in 30 day censoring (for modeling)
+  mutate(dtp_30 = ifelse(dtp_42 >= 30, 30, dtp_42),
+         censored_30 = ifelse(dtp_42 >= 30, "right", "none")) %>% 
+  # Adding in 25 day censoring (for modeling)
+  mutate(dtp_25 = ifelse(dtp_42 >= 25, 25, dtp_42),
+         censored_25 = ifelse(dtp_42 >= 25, "right", "none")) %>% 
+  dplyr::select(-MBSTRESN, -MBSTRESC) %>% 
+  mutate(weeks = MBDY/7)
+
+save(df_analysis_s29,
+     file = here("data", "cleaned-data", 
+                 paste0(Sys.Date(), "_TBTC-S29-clean.RData")))
+
+#########################
+# Study 29 and 29X 
+#########################
+
+df_analysis_s29x <- df_TBTC_S29x %>% 
+  filter(MBSTRESC == "NO GROWTH" | !is.na(MBSTRESN)) %>% 
+  dplyr::select(patient.id = USUBJID, MBDY, MBSTRESN, MBSTRESC, MBTSTDTL, VISIT) %>% 
+  distinct() %>% 
+  # Taking the first 8 weeks of observation
+  filter(MBDY < 7*9 & MBDY >= 0 | VISIT == "SCREENING") %>% 
+  mutate(weeks_rounded = ifelse(MBDY > 0,floor(MBDY/7), 0),
+         dtp_42 = ifelse(MBSTRESC == "NO GROWTH", 42, MBSTRESN),
+         censored_42 = ifelse(MBSTRESC == "NO GROWTH", "right", "none")) %>% 
+  # Adding in 30 day censoring (for modeling)
+  mutate(dtp_30 = ifelse(dtp_42 >= 30, 30, dtp_42),
+         censored_30 = ifelse(dtp_42 >= 30, "right", "none")) %>% 
+  # Adding in 25 day censoring (for modeling)
+  mutate(dtp_25 = ifelse(dtp_42 >= 25, 25, dtp_42),
+         censored_25 = ifelse(dtp_42 >= 25, "right", "none")) %>% 
+  dplyr::select(-MBSTRESN, -MBSTRESC) %>% 
+  mutate(weeks = MBDY/7)
+
+save(df_analysis_s29,
+     file = here("data", "cleaned-data", 
+                 paste0(Sys.Date(), "_TBTC-S29x-clean.RData")))
