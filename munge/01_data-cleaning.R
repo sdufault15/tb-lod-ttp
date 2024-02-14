@@ -2,7 +2,7 @@
 # Suzanne M Dufault
 # Data Cleaning
 # Origin: 2023-06-16
-# Revision: 2023-06-16
+# Revision: 2024-02-14
 #########################
 
 
@@ -131,7 +131,7 @@ save(df_analysis_nc005,
 
 df_analysis_s29 <- df_TBTC_S29 %>% 
   filter(MBSTRESC == "NO GROWTH" | !is.na(MBSTRESN)) %>% 
-  dplyr::select(patient.id = USUBJID, MBDY, MBSTRESN, MBSTRESC, MBTSTDTL, VISIT) %>% 
+  dplyr::select(patient.id = USUBJID, MBDY, MBSTRESN, MBSTRESC, MBTSTDTL, VISIT, ACTARM) %>% 
   distinct() %>% 
   # Taking the first 8 weeks of observation
   filter(MBDY < 7*9 & MBDY >= 0 | VISIT == "SCREENING") %>% 
@@ -152,12 +152,12 @@ save(df_analysis_s29,
                  paste0(Sys.Date(), "_TBTC-S29-clean.RData")))
 
 #########################
-# Study 29 and 29X 
+# Study 29X 
 #########################
 
 df_analysis_s29x <- df_TBTC_S29x %>% 
   filter(MBSTRESC == "NO GROWTH" | !is.na(MBSTRESN)) %>% 
-  dplyr::select(patient.id = USUBJID, MBDY, MBSTRESN, MBSTRESC, MBTSTDTL, VISIT) %>% 
+  dplyr::select(patient.id = USUBJID, MBDY, MBSTRESN, MBSTRESC, MBTSTDTL, VISIT, ACTARM) %>% 
   distinct() %>% 
   # Taking the first 8 weeks of observation
   filter(MBDY < 7*9 & MBDY >= 0 | VISIT == "SCREENING") %>% 
