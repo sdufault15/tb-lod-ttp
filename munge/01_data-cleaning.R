@@ -173,6 +173,6 @@ df_analysis_s29x <- df_TBTC_S29x %>%
   dplyr::select(-MBSTRESN, -MBSTRESC) %>% 
   mutate(weeks = MBDY/7)
 
-save(df_analysis_s29,
+save(df_analysis_s29x,
      file = here("data", "cleaned-data", 
                  paste0(Sys.Date(), "_TBTC-S29x-clean.RData")))
