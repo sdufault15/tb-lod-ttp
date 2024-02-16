@@ -161,7 +161,7 @@ save(m_linear_nc002_25,
 # Run the models on NC-006
 ###########################
 load(here("data", "cleaned-data", "2024-02-16_NC-006-clean.RData"))
-m_linear_nc006_42 <- brm(log10(dtp_42) | cens(censored_42) ~ weeks + (1 + weeks | USUBJID + ACTARM), # run the model
+m_linear_nc006_42 <- brm(log10(dtp_42) | cens(censored_42) ~ weeks + (1 + weeks | patient.id + ACTARM), # run the model
                          data = df_analysis_nc006,
                          init = 0,
                          chains = 4,
@@ -175,7 +175,7 @@ save(m_linear_nc006_42,
                  paste0(Sys.Date(), "_linear-nc006-lod-42.RData")))
 rm(m_linear_nc006_42)
 
-m_linear_nc006_30 <- brm(log10(dtp_30) | cens(censored_30) ~ weeks + (1 + weeks | USUBJID + ACTARM), # run the model
+m_linear_nc006_30 <- brm(log10(dtp_30) | cens(censored_30) ~ weeks + (1 + weeks | patient.id + ACTARM), # run the model
                          data = df_analysis_nc006,
                          init = 0,
                          chains = 4,
@@ -189,7 +189,7 @@ save(m_linear_nc006_30,
      file = here("data", "model-generated", 
                  paste0(Sys.Date(), "_linear-nc006-lod-30.RData")))
 
-m_linear_nc006_25 <- brm(log10(dtp_25) | cens(censored_25) ~ weeks + (1 + weeks | USUBJID + ACTARM), # run the model
+m_linear_nc006_25 <- brm(log10(dtp_25) | cens(censored_25) ~ weeks + (1 + weeks | patient.id + ACTARM), # run the model
                          data = df_analysis_nc006,
                          init = 0,
                          chains = 4,
