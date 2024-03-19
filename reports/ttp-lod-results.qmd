@@ -67,22 +67,57 @@ Our objective is to examine existing TTP data from various case studies to bette
 
 -   PanACEA MAMS-TB
 
+-   NC-002 (M-Pa-Z)
+
+-   NC-005 (M-Pa-Z-B)
+
+-   NC-006 (STAND)
+
+-   Study 29
+
+-   Study 29x
+
+<!-- THESE DESCRIPTIONS NEED TO BE UPDATED-->
+<!-- ## REMoxTB -->
+
+<!-- We will restrict to only those with: -->
+
+<!-- -   `result = 0,1,2` (i.e., only those with a Negative (0), Positive (1), or Unconfirmed Positive (2) result) -->
+<!-- -   `bact = 1` (i.e., MGIT) -->
+<!-- -   `weeks <= 8` (i.e., only looking at observations within 8 weeks of randomization) -->
+<!-- -   `!box_mitt %in% c(10,20,30)` excluding those with late screening failures -->
+
+<!-- ## MAMS -->
+
+<!-- We restrict to those with: -->
+
+<!-- -   `WEEK <= 8` (i.e., only looking at observations within 8 weeks of randomization) -->
+
+<!-- -   `!is.na(DV)` (i.e., only those with an observed time to positivity) -->
+
 ## REMoxTB
 
-We will restrict to only those with:
+```{r}
+df_analysis_remox %>% 
+  group_by(alloc) %>% 
+  summarise(n = n_distinct(trial_no)) %>% 
+  ungroup() %>% 
+  mutate(total = sum(n)) %>% 
+  kable() %>% 
+  kable_styling()
+```
 
--   `result = 0,1,2` (i.e., only those with a Negative (0), Positive (1), or Unconfirmed Positive (2) result)
--   `bact = 1` (i.e., MGIT)
--   `weeks <= 8` (i.e., only looking at observations within 8 weeks of randomization)
--   `!box_mitt %in% c(10,20,30)` excluding those with late screening failures
+## MAMS-TB
 
-## MAMS
-
-We restrict to those with:
-
--   `WEEK <= 8` (i.e., only looking at observations within 8 weeks of randomization)
-
--   `!is.na(DV)` (i.e., only those with an observed time to positivity)
+```{r}
+df_analysis_mams %>% 
+  group_by(Treatm_arm) %>% 
+  summarise(n = n_distinct(patient.id)) %>% 
+  ungroup() %>% 
+  mutate(total = sum(n)) %>% 
+  kable() %>% 
+  kable_styling()
+```
 
 ## TB-PACTS NC-002 M-Pa-Z
 
