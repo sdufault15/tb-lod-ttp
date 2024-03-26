@@ -69,7 +69,7 @@ save(df_analysis_mams,
 # NC-002 (M-Pa-Z)
 #########################
 
-load("~/Documents/ucsf-research-git/tb-pacts-general/generated-datasets/2024-02-16_tb-pacts-data-with-ttp-measures.RData")
+load(here("..","tb-pacts-general","generated-datasets","2024-03-26_tb-pacts-data-with-ttp-measures.RData"))
 list2env(tb_pacts, envir = environment())
 
 df_analysis_nc002 <- df_NC_002 %>% 
@@ -109,7 +109,7 @@ df_analysis_nc005 <- df_NC_005 %>%
   filter(MBDY < 7*9) %>%
   mutate(weeks_rounded = ifelse(MBDY < 0, 0, floor(MBDY/7)),
          dtp_42 = ifelse(MBSTRESC == "NEGATIVE" | MBSTRESN > 42, 42, MBSTRESN),
-         censored_42 = ifelse(MBSTRESC == "NEGATIVE" | MBSTRESN > 42, "right", "none")) %>% 
+         censored_42 = ifelse(MBSTRESC == "NEGATIVE" | MBSTRESN > 42, "right", "none")) 
   # Adding in 30 day censoring (for modeling)
   mutate(dtp_30 = ifelse(dtp_42 >= 30, 30, dtp_42),
          censored_30 = ifelse(dtp_42 >= 30, "right", "none")) %>% 
@@ -133,8 +133,8 @@ df_analysis_nc006 <- df_NC_006 %>%
   # Taking the first 8 weeks of observation
   filter(MBDY < 7*9) %>%
   mutate(weeks_rounded = ifelse(MBDY < 0, 0, floor(MBDY/7)),
-         dtp_42 = ifelse(MBSTRESC == "NEGATIVE" | MBSTRESN > 42, 42, MBSTRESN),
-         censored_42 = ifelse(MBSTRESC == "NEGATIVE" | MBSTRESN > 42, "right", "none")) %>% 
+         dtp_42 = ifelse(MBSTRESN > 42 | is.na(MBSTRESN), 42, MBSTRESN),
+         censored_42 = ifelse(MBSTRESN > 42 | is.na(MBSTRESN), "right", "none")) %>% 
   # Adding in 30 day censoring (for modeling)
   mutate(dtp_30 = ifelse(dtp_42 >= 30, 30, dtp_42),
          censored_30 = ifelse(dtp_42 >= 30, "right", "none")) %>% 
