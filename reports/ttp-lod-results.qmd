@@ -30,13 +30,13 @@ source(here("lib", "ucsf-color-palette.R"))
 source(here("lib", "relative-function-mams.R")) # used for posterior comparison of regimens v control
 source(here("lib", "relative-function-remox.R")) # used for posterior comparison of regimens v control
 source(here("lib", "relative-function-nc002.R"))
-load(here("data", "cleaned-data", "2024-02-09_remoxtb-clean.RData"))
-load(here("data", "cleaned-data", "2024-02-09_mams-clean.RData"))
-load(here("data", "cleaned-data", "2024-02-16_TBTC-S29-clean.RData"))
-load(here("data", "cleaned-data", "2024-02-16_TBTC-S29x-clean.RData"))
-load(here("data", "cleaned-data", "2024-02-16_NC-002-clean.RData"))
-load(here("data", "cleaned-data", "2024-02-16_NC-005-clean.RData"))
-load(here("data", "cleaned-data", "2024-02-16_NC-006-clean.RData"))
+load(here("data", "cleaned-data", "2024-03-26_remoxtb-clean.RData"))
+load(here("data", "cleaned-data", "2024-03-26_mams-clean.RData"))
+load(here("data", "cleaned-data", "2024-03-26_TBTC-S29-clean.RData"))
+load(here("data", "cleaned-data", "2024-03-26_TBTC-S29x-clean.RData"))
+load(here("data", "cleaned-data", "2024-03-26_NC-002-clean.RData"))
+load(here("data", "cleaned-data", "2024-03-26_NC-005-clean.RData"))
+load(here("data", "cleaned-data", "2024-03-26_NC-006-clean.RData"))
 theme_set(ggpubr::theme_pubr())
 ```
 
@@ -195,7 +195,7 @@ data.frame(t = seq(0,8,length.out = 100)) %>%
                                              gamma = 0.24),
          y.linear = 0.860 + t*0.083) %>% 
   ggplot(aes(x = t)) + 
-  geom_line(aes(y = y.biphasic)) + 
+  # geom_line(aes(y = y.biphasic)) + 
   geom_line(aes(y = y.linear),
             lty = 2) + 
   scale_y_continuous("TTP in days, log10 scale",
@@ -248,6 +248,14 @@ df_analysis_nc002 %>%
   mutate(prop = n/sum(n)) %>% 
   kable(digits = 4,
         caption = "NC-002") %>% 
+  kable_styling(font_size = 20)
+
+df_analysis_nc005 %>% 
+  group_by(ttp = cut(dtp_42, breaks = c(0,25,42,45), right = FALSE)) %>% 
+  summarise(n = n()) %>% 
+  mutate(prop = n/sum(n)) %>% 
+  kable(digits = 4,
+        caption = "NC-005") %>% 
   kable_styling(font_size = 20)
 
 df_analysis_nc006 %>% 
