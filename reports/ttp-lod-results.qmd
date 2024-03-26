@@ -992,7 +992,7 @@ alluv_nc002 <- ggplot(df_nc002_flow, aes(x = weeks_rounded, stratum = category, 
   geom_stratum(col = "white") +
   labs(x = "Weeks from randomization",
        y = "No. samples",
-       title = "NC-002 (M-Pa-Z)") + 
+       title = "NC-002 (MPaZ)") + 
   theme(legend.title = element_blank())
 
 df_nc005_flow <- df_analysis_nc005 %>% 
@@ -1015,7 +1015,7 @@ alluv_nc005 <- ggplot(df_nc005_flow, aes(x = weeks_rounded, stratum = category, 
   geom_stratum(col = "white") +
   labs(x = "Weeks from randomization",
        y = "No. samples",
-       title = "NC-005 (M-Pa-Z-B)") + 
+       title = "NC-005 (MPaZB)") + 
   theme(legend.title = element_blank())
 
 df_nc006_flow <- df_analysis_nc006 %>% 
@@ -1110,7 +1110,7 @@ ggsave(file = here("graphs", "descriptive", "02_alluvial-combined-extended.tiff"
 -   The 30-42 day observations tend to occur in weeks 4+
 -   **NOTE** by week 8, the majority of samples are not returning any information.
 
-## Weekly TTP Distribution (REMoxTB)
+## Weekly TTP Distribution {.scrollable}
 
 ```{r}
 #| fig-cap: "Distribution of TTP measures at each week post-randomization."
@@ -1121,11 +1121,41 @@ df_analysis_remox %>%
   facet_wrap(~weeks_cat)+#, 
              # scales = "free_y") + 
   geom_histogram() + 
-  geom_vline(xintercept = c(30,42), lty = 2) + 
+  geom_vline(xintercept = c(25,42), lty = 2) + 
   scale_x_log10("Days to Positivity, log scale",
                 breaks = c(1,5,10,20,35),
                 labels = c(1,5,10,20,35)) + 
-  theme(axis.title.y = element_blank())
+  theme(axis.title.y = element_blank()) + 
+  labs(title = "REMoxTB")
+
+df_analysis_mams %>% 
+  mutate(weeks_cat = floor(weeks)) %>% #with(., table(weeks_cat))
+  mutate(weeks_cat = factor(weeks_cat)) %>% 
+  ggplot(aes(x = dtp_42)) + 
+  facet_wrap(~weeks_cat)+#, 
+             # scales = "free_y") + 
+  geom_histogram() + 
+  geom_vline(xintercept = c(25,42), lty = 2) + 
+  scale_x_log10("Days to Positivity, log scale",
+                breaks = c(1,5,10,20,35),
+                labels = c(1,5,10,20,35)) + 
+  theme(axis.title.y = element_blank()) + 
+  labs(title = "MAMS-TB")
+
+df_analysis_nc002 %>% 
+  mutate(weeks_cat = floor(weeks)) %>% #with(., table(weeks_cat))
+  mutate(weeks_cat = ifelse(weeks_cat <= 0, 0, weeks_cat)) %>% 
+  mutate(weeks_cat = factor(weeks_cat)) %>% 
+  ggplot(aes(x = dtp_42)) + 
+  facet_wrap(~weeks_cat)+#, 
+             # scales = "free_y") + 
+  geom_histogram() + 
+  geom_vline(xintercept = c(25,42), lty = 2) + 
+  scale_x_log10("Days to Positivity, log scale",
+                breaks = c(1,5,10,20,35),
+                labels = c(1,5,10,20,35)) + 
+  theme(axis.title.y = element_blank()) + 
+  labs(title = "NC-002 (MPaZ)")
 ```
 
 ## Takeaway: Weekly TTP Distribution (REMoxTB)
