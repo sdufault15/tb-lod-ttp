@@ -81,11 +81,13 @@ We restrict to those with:
 ## TB-PACTS NC-002 M-Pa-Z
 
 ```{r}
-load("~/Documents/ucsf-research-git/tb-pacts-general/generated-datasets/2023-10-31_tb-pacts-data-with-ttp-measures.RData")
+#load("~/Documents/ucsf-research-git/tb-pacts-general/generated-datasets/2023-10-31_tb-pacts-data-with-ttp-measures.RData")
+# Just for laptop
+load(here("..","tb-pacts-general","generated-datasets","2023-10-31_tb-pacts-data-with-ttp-measures.RData"))
 list2env(tb_pacts, envir = environment())
 ```
 
-## TB-PACTS NC-005  M-Pa-Z-B
+## TB-PACTS NC-005 M-Pa-Z-B
 
 ## TB-PACTS NC-006 (STAND)
 
@@ -1196,7 +1198,7 @@ The same trend as was observed in MAMS is not observed in the REMoxTB data, whic
 
 Should we be doing more of a grid-search or can we motivate this better with a S-N exploration first?
 
-# Signal-to-Noise 
+# Signal-to-Noise
 
 ## Replicates (NC-002) {.scrollable}
 
@@ -1237,7 +1239,6 @@ p1
 # library(ggExtra)
 # ggMarginal(p1, groupColour = TRUE, groupFill = TRUE)
 ```
-
 
 ```{r}
 #| eval: false
@@ -1380,7 +1381,6 @@ p1
 # library(ggExtra)
 # ggMarginal(p1, groupColour = TRUE, groupFill = TRUE)
 ```
-
 
 ```{r}
 #| eval: false
