@@ -17,7 +17,7 @@ df_mams_replicates <- df_analysis_mams %>%
 #########################
 # TB-PACTS: NC_002
 #########################
-load(here("data","2023-10-31_tb-pacts-data-with-ttp-measures.RData"))
+load(here("..", "tb-pacts-general", "generated-datasets","2024-03-26_tb-pacts-data-with-ttp-measures.RData"))
 list2env(tb_pacts, environment())
 rm(tb_pacts)
 
@@ -88,7 +88,7 @@ df_TBTC_S29 %>%
   filter(!is.na(`1`) & !is.na(`2`)) %>% arrange(USUBJID, MBDY)
 
 df_TBTC_S29x %>% 
-  # Smaller dataset to work with
+  # Also only 2 individuals 
   dplyr::select(USUBJID, MBDY, MBSTRESN, MBSTRESC, ACTARM) %>% 
   distinct() %>% 
   # Taking the first 8 weeks of observation

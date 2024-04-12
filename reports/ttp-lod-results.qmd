@@ -30,11 +30,13 @@ source(here("lib", "ucsf-color-palette.R"))
 source(here("lib", "relative-function-mams.R")) # used for posterior comparison of regimens v control
 source(here("lib", "relative-function-remox.R")) # used for posterior comparison of regimens v control
 source(here("lib", "relative-function-nc002.R"))
-load(here("data", "cleaned-data", "2024-02-09_remoxtb-clean.RData"))
-load(here("data", "cleaned-data", "2024-02-09_mams-clean.RData"))
-load(here("data", "cleaned-data", "2024-02-13_TBTC-S29-clean.RData"))
-load(here("data", "cleaned-data", "2024-02-13_TBTC-S29x-clean.RData"))
-load(here("data", "cleaned-data", "2024-02-09_NC-002-clean.RData"))
+load(here("data", "cleaned-data", "2024-03-26_remoxtb-clean.RData"))
+load(here("data", "cleaned-data", "2024-03-26_mams-clean.RData"))
+load(here("data", "cleaned-data", "2024-03-26_TBTC-S29-clean.RData"))
+load(here("data", "cleaned-data", "2024-03-26_TBTC-S29x-clean.RData"))
+load(here("data", "cleaned-data", "2024-03-26_NC-002-clean.RData"))
+load(here("data", "cleaned-data", "2024-03-26_NC-005-clean.RData"))
+load(here("data", "cleaned-data", "2024-03-26_NC-006-clean.RData"))
 theme_set(ggpubr::theme_pubr())
 ```
 
@@ -65,37 +67,117 @@ Our objective is to examine existing TTP data from various case studies to bette
 
 -   PanACEA MAMS-TB
 
+-   NC-002 (M-Pa-Z)
+
+-   NC-005 (M-Pa-Z-B)
+
+-   NC-006 (STAND)
+
+-   Study 29
+
+-   Study 29x
+
+<!-- THESE DESCRIPTIONS NEED TO BE UPDATED-->
+<!-- ## REMoxTB -->
+
+<!-- We will restrict to only those with: -->
+
+<!-- -   `result = 0,1,2` (i.e., only those with a Negative (0), Positive (1), or Unconfirmed Positive (2) result) -->
+<!-- -   `bact = 1` (i.e., MGIT) -->
+<!-- -   `weeks <= 8` (i.e., only looking at observations within 8 weeks of randomization) -->
+<!-- -   `!box_mitt %in% c(10,20,30)` excluding those with late screening failures -->
+
+<!-- ## MAMS -->
+
+<!-- We restrict to those with: -->
+
+<!-- -   `WEEK <= 8` (i.e., only looking at observations within 8 weeks of randomization) -->
+
+<!-- -   `!is.na(DV)` (i.e., only those with an observed time to positivity) -->
+
 ## REMoxTB
 
-We will restrict to only those with:
+```{r}
+df_analysis_remox %>% 
+  group_by(alloc) %>% 
+  summarise(n = n_distinct(trial_no)) %>% 
+  ungroup() %>% 
+  mutate(total = sum(n)) %>% 
+  kable() %>% 
+  kable_styling()
+```
 
--   `result = 0,1,2` (i.e., only those with a Negative (0), Positive (1), or Unconfirmed Positive (2) result)
--   `bact = 1` (i.e., MGIT)
--   `weeks <= 8` (i.e., only looking at observations within 8 weeks of randomization)
--   `!box_mitt %in% c(10,20,30)` excluding those with late screening failures
+## MAMS-TB
 
-## MAMS
-
-We restrict to those with:
-
--   `WEEK <= 8` (i.e., only looking at observations within 8 weeks of randomization)
-
--   `!is.na(DV)` (i.e., only those with an observed time to positivity)
+```{r}
+df_analysis_mams %>% 
+  group_by(Treatm_arm) %>% 
+  summarise(n = n_distinct(patient.id)) %>% 
+  ungroup() %>% 
+  mutate(total = sum(n)) %>% 
+  kable() %>% 
+  kable_styling()
+```
 
 ## TB-PACTS NC-002 M-Pa-Z
 
 ```{r}
-load("~/Documents/ucsf-research-git/tb-pacts-general/generated-datasets/2024-02-06_tb-pacts-data-with-ttp-measures.RData")
-list2env(tb_pacts, envir = environment())
+df_analysis_nc002 %>% 
+  group_by(ACTARM) %>% 
+  summarise(n = n_distinct(USUBJID)) %>% 
+  ungroup() %>% 
+  mutate(total = sum(n)) %>% 
+  kable() %>% 
+  kable_styling()
 ```
 
 ## TB-PACTS NC-005 M-Pa-Z-B
 
+```{r}
+df_analysis_nc005 %>% 
+  group_by(ACTARM) %>% 
+  summarise(n = n_distinct(patient.id)) %>% 
+  ungroup() %>% 
+  mutate(total = sum(n)) %>% 
+  kable() %>% 
+  kable_styling()
+```
+
 ## TB-PACTS NC-006 (STAND)
+
+```{r}
+df_analysis_nc006 %>% 
+  group_by(ACTARM) %>% 
+  summarise(n = n_distinct(patient.id)) %>% 
+  ungroup() %>% 
+  mutate(total = sum(n)) %>% 
+  kable() %>% 
+  kable_styling()
+```
 
 ## TB-PACTS TBTC-S29
 
+```{r}
+df_analysis_s29 %>% 
+  group_by(ACTARM) %>% 
+  summarise(n = n_distinct(patient.id)) %>% 
+  ungroup() %>% 
+  mutate(total = sum(n)) %>% 
+  kable() %>% 
+  kable_styling()
+```
+
 ## TB-PACTS TBTC-S29x
+
+```{r}
+df_analysis_s29x %>% 
+  group_by(ACTARM) %>% 
+  summarise(n = n_distinct(patient.id)) %>% 
+  ungroup() %>% 
+  mutate(total = sum(n)) %>% 
+  kable() %>% 
+  kable_styling()
+```
 
 ## Methods - Models
 
@@ -113,7 +195,7 @@ data.frame(t = seq(0,8,length.out = 100)) %>%
                                              gamma = 0.24),
          y.linear = 0.860 + t*0.083) %>% 
   ggplot(aes(x = t)) + 
-  geom_line(aes(y = y.biphasic)) + 
+  # geom_line(aes(y = y.biphasic)) + 
   geom_line(aes(y = y.linear),
             lty = 2) + 
   scale_y_continuous("TTP in days, log10 scale",
@@ -139,7 +221,7 @@ ggsave(filename = here("graphs", "models", "00_models-hypothesized.tiff"),
 
 # Descriptive Profile
 
-## Quick Summary
+## Quick Summary {.scrollable}
 
 ::: columns
 ::: {.column width="30%"}
@@ -158,6 +240,46 @@ df_analysis_mams %>%
   mutate(prop = n/sum(n)) %>% 
   kable(digits = 4,
         caption = "MAMS-TB") %>% 
+  kable_styling(font_size = 20)
+
+df_analysis_nc002 %>% 
+  group_by(ttp = cut(dtp_42, breaks = c(0,25,42,45), right = FALSE)) %>% 
+  summarise(n = n()) %>% 
+  mutate(prop = n/sum(n)) %>% 
+  kable(digits = 4,
+        caption = "NC-002") %>% 
+  kable_styling(font_size = 20)
+
+df_analysis_nc005 %>% 
+  group_by(ttp = cut(dtp_42, breaks = c(0,25,42,45), right = FALSE)) %>% 
+  summarise(n = n()) %>% 
+  mutate(prop = n/sum(n)) %>% 
+  kable(digits = 4,
+        caption = "NC-005") %>% 
+  kable_styling(font_size = 20)
+
+df_analysis_nc006 %>% 
+  group_by(ttp = cut(dtp_42, breaks = c(0,25,42,60), right = FALSE)) %>% 
+  summarise(n = n()) %>% 
+  mutate(prop = n/sum(n)) %>% 
+  kable(digits = 4,
+        caption = "NC-006") %>% 
+  kable_styling(font_size = 20)
+
+df_analysis_s29 %>% 
+  group_by(ttp = cut(dtp_42, breaks = c(0,25,42,60), right = FALSE)) %>% 
+  summarise(n = n()) %>% 
+  mutate(prop = n/sum(n)) %>% 
+  kable(digits = 4,
+        caption = "Study 29") %>% 
+  kable_styling(font_size = 20)
+
+df_analysis_s29x %>% 
+  group_by(ttp = cut(dtp_42, breaks = c(0,25,42,60), right = FALSE)) %>% 
+  summarise(n = n()) %>% 
+  mutate(prop = n/sum(n)) %>% 
+  kable(digits = 4,
+        caption = "Study 29X") %>% 
   kable_styling(font_size = 20)
 ```
 :::
@@ -365,7 +487,322 @@ Panel B
 -   Individual trajectories are often high variance
 -   Individual trajectories tend to be increasing over time. There are very few that appear to start high/low and stay there. (e.g., treatment effect is observable)
 
-## NC-002
+## TTP v Time (NC-002 M-Pa-Z)
+
+```{r}
+#| fig-cap: "Observed TTP trajectories, where anything at or above 42 receives a value of 42."
+p1_nc002 <- df_analysis_nc002 %>% 
+  mutate(weeks = ifelse(weeks < 0, 0, weeks)) %>% 
+  # Averaging the replicate measures
+  group_by(USUBJID, weeks) %>% 
+  mutate(dtp_42_avg = mean(dtp_42)) %>% 
+  ggplot(aes(x = weeks, y = dtp_42, col = ACTARM, lty = ACTARM)) + 
+  # geom_point(alpha = 0.3,
+  #            position = position_jitter(width = 0.1,height = 0)) +
+  geom_smooth(method = lm, 
+              formula = y ~ splines::bs(x, 4), 
+              aes(group = ACTARM)) + 
+  scale_y_log10("TTP in days, log10 scale",
+                breaks = c(5,7,10,15,20,30,42),
+                labels = c(5,7,10,15,20,30,42)) + 
+  scale_x_continuous("Days from randomization", 
+                     breaks = 0:8,
+                     labels = seq(0,56, by = 7)) +
+  coord_cartesian(y = c(5,43), x = c(0,8))  + 
+  geom_hline(yintercept = 42, 
+             lty = 2) +
+  theme(legend.position = c(0.8,0.2),
+        legend.title = element_blank()) + 
+  scale_color_manual(values = ucsf_col_pal)
+
+p2_nc002 <- df_analysis_nc002 %>% 
+  mutate(weeks = ifelse(weeks < 0, 0, weeks)) %>% 
+  # Averaging the replicate measures
+  group_by(USUBJID, weeks) %>% 
+  mutate(dtp_42_avg = mean(dtp_42)) %>%
+  ggplot(aes(x = weeks, y = dtp_42_avg, group=USUBJID)) + 
+  facet_wrap(~ACTARM, ncol = 1) + 
+  geom_line(alpha = 0.3,
+            col = "darkgray") + 
+  geom_smooth(aes(group = ACTARM,
+                  lty = ACTARM),
+              method = lm, 
+              formula = y ~ splines::bs(x, 4),
+              col = "black",
+              se = FALSE) + 
+  scale_y_log10("TTP in days, log10 scale",
+                breaks = c(5,7,10,15,20,30,42),
+                labels = c(5,7,10,15,20,30,42)) + 
+  scale_x_continuous("Days from randomization", 
+                     breaks = 0:8,
+                     labels = seq(0,56, by = 7)) +
+  coord_cartesian(y = c(5,43), x = c(0,8)) +
+  geom_hline(yintercept = 42, 
+             lty = 2) + 
+  theme(legend.position = "none")
+
+p1_nc002 + p2_nc002 + 
+  plot_annotation(tag_levels = "A")
+```
+
+## TTP v Time (NC-005 M-Pa-Z)
+
+```{r}
+#| fig-cap: "Observed TTP trajectories, where anything at or above 42 receives a value of 42."
+p1_nc005 <- df_analysis_nc005 %>% 
+  mutate(weeks = ifelse(weeks < 0, 0, weeks)) %>% 
+  # Averaging the replicate measures
+  group_by(patient.id, weeks) %>% 
+  mutate(dtp_42_avg = mean(dtp_42)) %>% 
+  ggplot(aes(x = weeks, y = dtp_42, col = ACTARM, lty = ACTARM)) + 
+  # geom_point(alpha = 0.3,
+  #            position = position_jitter(width = 0.1,height = 0)) +
+  geom_smooth(method = lm, 
+              formula = y ~ splines::bs(x, 4), 
+              aes(group = ACTARM)) + 
+  scale_y_log10("TTP in days, log10 scale",
+                breaks = c(5,7,10,15,20,30,42),
+                labels = c(5,7,10,15,20,30,42)) + 
+  scale_x_continuous("Days from randomization", 
+                     breaks = 0:8,
+                     labels = seq(0,56, by = 7)) +
+  coord_cartesian(y = c(5,43), x = c(0,8))  + 
+  geom_hline(yintercept = 42, 
+             lty = 2) +
+  theme(legend.position = c(0.8,0.2),
+        legend.title = element_blank()) + 
+  scale_color_manual(values = ucsf_col_pal)
+
+p2_nc005 <- df_analysis_nc005 %>% 
+  mutate(weeks = ifelse(weeks < 0, 0, weeks)) %>% 
+  # Averaging the replicate measures
+  group_by(patient.id, weeks) %>% 
+  mutate(dtp_42_avg = mean(dtp_42)) %>%
+  ggplot(aes(x = weeks, y = dtp_42_avg, group=patient.id)) + 
+  facet_wrap(~ACTARM, ncol = 1) + 
+  geom_line(alpha = 0.3,
+            col = "darkgray") + 
+  geom_smooth(aes(group = ACTARM,
+                  lty = ACTARM),
+              method = lm, 
+              formula = y ~ splines::bs(x, 4),
+              col = "black",
+              se = FALSE) + 
+  scale_y_log10("TTP in days, log10 scale",
+                breaks = c(5,7,10,15,20,30,42),
+                labels = c(5,7,10,15,20,30,42)) + 
+  scale_x_continuous("Days from randomization", 
+                     breaks = 0:8,
+                     labels = seq(0,56, by = 7)) +
+  coord_cartesian(y = c(5,43), x = c(0,8)) +
+  geom_hline(yintercept = 42, 
+             lty = 2) + 
+  theme(legend.position = "none")
+
+p1_nc005 + p2_nc005 + 
+  plot_annotation(tag_levels = "A")
+```
+
+## TTP v Time (NC-006 M-Pa-Z)
+
+```{r}
+#| fig-cap: "Observed TTP trajectories, where anything at or above 42 receives a value of 42."
+p1_nc006 <- df_analysis_nc006 %>% 
+  mutate(weeks = ifelse(weeks < 0, 0, weeks)) %>% 
+  # Averaging the replicate measures
+  group_by(patient.id, weeks) %>% 
+  mutate(dtp_42_avg = mean(dtp_42)) %>% 
+  ggplot(aes(x = weeks, y = dtp_42, col = ACTARM, lty = ACTARM)) + 
+  # geom_point(alpha = 0.3,
+  #            position = position_jitter(width = 0.1,height = 0)) +
+  geom_smooth(method = lm, 
+              formula = y ~ splines::bs(x, 4), 
+              aes(group = ACTARM)) + 
+  scale_y_log10("TTP in days, log10 scale",
+                breaks = c(5,7,10,15,20,30,42),
+                labels = c(5,7,10,15,20,30,42)) + 
+  scale_x_continuous("Days from randomization", 
+                     breaks = 0:8,
+                     labels = seq(0,56, by = 7)) +
+  coord_cartesian(y = c(5,43), x = c(0,8))  + 
+  geom_hline(yintercept = 42, 
+             lty = 2) +
+  theme(legend.position = c(0.8,0.2),
+        legend.title = element_blank()) + 
+  scale_color_manual(values = ucsf_col_pal)
+
+p2_nc006 <- df_analysis_nc006 %>% 
+  mutate(weeks = ifelse(weeks < 0, 0, weeks)) %>% 
+  # Averaging the replicate measures
+  group_by(patient.id, weeks) %>% 
+  mutate(dtp_42_avg = mean(dtp_42)) %>%
+  ggplot(aes(x = weeks, y = dtp_42_avg, group=patient.id)) + 
+  facet_wrap(~ACTARM, ncol = 1) + 
+  geom_line(alpha = 0.3,
+            col = "darkgray") + 
+  geom_smooth(aes(group = ACTARM,
+                  lty = ACTARM),
+              method = lm, 
+              formula = y ~ splines::bs(x, 4),
+              col = "black",
+              se = FALSE) + 
+  scale_y_log10("TTP in days, log10 scale",
+                breaks = c(5,7,10,15,20,30,42),
+                labels = c(5,7,10,15,20,30,42)) + 
+  scale_x_continuous("Days from randomization", 
+                     breaks = 0:8,
+                     labels = seq(0,56, by = 7)) +
+  coord_cartesian(y = c(5,43), x = c(0,8)) +
+  geom_hline(yintercept = 42, 
+             lty = 2) + 
+  theme(legend.position = "none")
+
+p1_nc006 + p2_nc006 + 
+  plot_annotation(tag_levels = "A")
+```
+
+## TTP v Time (Study 29)
+
+```{r}
+#| fig-cap: "Observed TTP trajectories, where anything at or above 42 receives a value of 42."
+p1_s29 <- df_analysis_s29 %>% 
+  mutate(weeks = ifelse(weeks < 0, 0, weeks)) %>% 
+  # Averaging the replicate measures
+  group_by(patient.id, weeks) %>% 
+  mutate(dtp_42_avg = mean(dtp_42)) %>% 
+  ggplot(aes(x = weeks, y = dtp_42, col = ACTARM, lty = ACTARM)) + 
+  # geom_point(alpha = 0.3,
+  #            position = position_jitter(width = 0.1,height = 0)) +
+  geom_smooth(method = lm, 
+              formula = y ~ splines::bs(x, 4), 
+              aes(group = ACTARM)) + 
+  scale_y_log10("TTP in days, log10 scale",
+                breaks = c(5,7,10,15,20,30,42),
+                labels = c(5,7,10,15,20,30,42)) + 
+  scale_x_continuous("Days from randomization", 
+                     breaks = 0:8,
+                     labels = seq(0,56, by = 7)) +
+  coord_cartesian(y = c(5,43), x = c(0,8))  + 
+  geom_hline(yintercept = 42, 
+             lty = 2) +
+  theme(legend.position = c(0.8,0.2),
+        legend.title = element_blank()) + 
+  scale_color_manual(values = ucsf_col_pal)
+
+p2_s29 <- df_analysis_s29 %>% 
+  mutate(weeks = ifelse(weeks < 0, 0, weeks)) %>% 
+  # Averaging the replicate measures
+  group_by(patient.id, weeks) %>% 
+  mutate(dtp_42_avg = mean(dtp_42)) %>%
+  ggplot(aes(x = weeks, y = dtp_42_avg, group=patient.id)) + 
+  facet_wrap(~ACTARM, ncol = 1) + 
+  geom_line(alpha = 0.3,
+            col = "darkgray") + 
+  geom_smooth(aes(group = ACTARM,
+                  lty = ACTARM),
+              method = lm, 
+              formula = y ~ splines::bs(x, 4),
+              col = "black",
+              se = FALSE) + 
+  scale_y_log10("TTP in days, log10 scale",
+                breaks = c(5,7,10,15,20,30,42),
+                labels = c(5,7,10,15,20,30,42)) + 
+  scale_x_continuous("Days from randomization", 
+                     breaks = 0:8,
+                     labels = seq(0,56, by = 7)) +
+  coord_cartesian(y = c(5,43), x = c(0,8)) +
+  geom_hline(yintercept = 42, 
+             lty = 2) + 
+  theme(legend.position = "none")
+
+p1_s29 + p2_s29 + 
+  plot_annotation(tag_levels = "A")
+```
+
+## TTP v Time (Study 29x)
+
+```{r}
+#| fig-cap: "Observed TTP trajectories, where anything at or above 42 receives a value of 42."
+p1_s29x <- df_analysis_s29x %>% 
+  mutate(weeks = ifelse(weeks < 0, 0, weeks)) %>% 
+  # Averaging the replicate measures
+  group_by(patient.id, weeks) %>% 
+  mutate(dtp_42_avg = mean(dtp_42)) %>% 
+  ggplot(aes(x = weeks, y = dtp_42, col = ACTARM, lty = ACTARM)) + 
+  # geom_point(alpha = 0.3,
+  #            position = position_jitter(width = 0.1,height = 0)) +
+  geom_smooth(method = lm, 
+              formula = y ~ splines::bs(x, 4), 
+              aes(group = ACTARM)) + 
+  scale_y_log10("TTP in days, log10 scale",
+                breaks = c(5,7,10,15,20,30,42),
+                labels = c(5,7,10,15,20,30,42)) + 
+  scale_x_continuous("Days from randomization", 
+                     breaks = 0:8,
+                     labels = seq(0,56, by = 7)) +
+  coord_cartesian(y = c(5,43), x = c(0,8))  + 
+  geom_hline(yintercept = 42, 
+             lty = 2) +
+  theme(legend.position = c(0.8,0.2),
+        legend.title = element_blank()) + 
+  scale_color_manual(values = ucsf_col_pal)
+
+p2_s29x <- df_analysis_s29x %>% 
+  mutate(weeks = ifelse(weeks < 0, 0, weeks)) %>% 
+  # Averaging the replicate measures
+  group_by(patient.id, weeks) %>% 
+  mutate(dtp_42_avg = mean(dtp_42)) %>%
+  ggplot(aes(x = weeks, y = dtp_42_avg, group=patient.id)) + 
+  facet_wrap(~ACTARM, ncol = 1) + 
+  geom_line(alpha = 0.3,
+            col = "darkgray") + 
+  geom_smooth(aes(group = ACTARM,
+                  lty = ACTARM),
+              method = lm, 
+              formula = y ~ splines::bs(x, 4),
+              col = "black",
+              se = FALSE) + 
+  scale_y_log10("TTP in days, log10 scale",
+                breaks = c(5,7,10,15,20,30,42),
+                labels = c(5,7,10,15,20,30,42)) + 
+  scale_x_continuous("Days from randomization", 
+                     breaks = 0:8,
+                     labels = seq(0,56, by = 7)) +
+  coord_cartesian(y = c(5,43), x = c(0,8)) +
+  geom_hline(yintercept = 42, 
+             lty = 2) + 
+  theme(legend.position = "none")
+
+p1_s29x + p2_s29x + 
+  plot_annotation(tag_levels = "A")
+```
+
+```{r}
+#| eval: false
+p_mams <- (p1_mams + p2_mams) + plot_annotation(title = "MAMS-TB")
+p_nc002 <- (p1_nc002 + p2_nc002) + plot_annotation(title = "NC-002 (M-Pa-Z)")
+p_nc005 <- (p1_nc005 + p2_nc005) + plot_annotation(title = "NC-005 (M-Pa-Z-B)") 
+p_nc006 <- (p1_nc006 + p2_nc006) + plot_annotation(title = "NC-006 (STAND)")
+p_s29 <- (p1_s29 + p2_s29) + plot_annotation(title = "Study 29") 
+p_s29x <- (p1_s29x + p2_s29x) + plot_annotation(title = "Study 29X") 
+
+p_mams /
+  p_nc002 / 
+  p_nc005 / 
+  p_nc006 / 
+  p_s29 / 
+  p_s29x +
+  plot_layout(ncol = 2
+              )
+
+ggsave(file = here("graphs", "descriptive", "01_trajectories-combined.png"),
+       device = "png",
+       height = 15,
+       width = 25,
+       units = "in",
+       dpi = 300)
+```
+
 
 ## Data Distribution v. Time
 
@@ -555,7 +992,7 @@ alluv_nc002 <- ggplot(df_nc002_flow, aes(x = weeks_rounded, stratum = category, 
   geom_stratum(col = "white") +
   labs(x = "Weeks from randomization",
        y = "No. samples",
-       title = "NC-002 (M-Pa-Z)") + 
+       title = "NC-002 (MPaZ)") + 
   theme(legend.title = element_blank())
 
 df_nc005_flow <- df_analysis_nc005 %>% 
@@ -578,19 +1015,10 @@ alluv_nc005 <- ggplot(df_nc005_flow, aes(x = weeks_rounded, stratum = category, 
   geom_stratum(col = "white") +
   labs(x = "Weeks from randomization",
        y = "No. samples",
-       title = "NC-005 (M-Pa-Z-B)") + 
+       title = "NC-005 (MPaZB)") + 
   theme(legend.title = element_blank())
 
-df_nc006_flow <- df_NC_006 %>% 
-  dplyr::select(patient.id = USUBJID, MBDY, MBMETHOD, MBSTRESN, MBSTRESC, MBTSTDTL, COMMENT) %>% 
-  distinct() %>% 
-  # Taking the first 8 weeks of observation
-  filter(MBDY <= 7*8 & MBDY >= 0,
-         is.na(COMMENT)) %>%
-  # Setting NA values to 42 for plotting purposes
-  mutate(weeks_rounded = floor(MBDY/7),
-         dtp_42 = ifelse(MBSTRESC %in% c("NEGATIVE", paste0(">",42:48)), 42, MBSTRESN)) %>%
-  dplyr::select(-MBSTRESN) %>% #, -MBSTRESC) %>% 
+df_nc006_flow <- df_analysis_nc006 %>% 
   group_by(patient.id, weeks_rounded) %>% 
   mutate(dtp_mean = mean(dtp_42, na.rm = TRUE),
          dtp_min = min(dtp_42, na.rm = TRUE)) %>% # For individuals who have more than one observed TTP in a week
@@ -658,7 +1086,7 @@ alluv_st29x <- ggplot(filter(df_st29x_flow, weeks_rounded %in% c(0,2,4,6,8)), ae
   geom_stratum(col = "white") +
   labs(x = "Weeks from randomization",
        y = "No. samples",
-       title = "Study 29") + 
+       title = "Study 29X") + 
   theme(legend.title = element_blank())
 ```
 
@@ -682,7 +1110,7 @@ ggsave(file = here("graphs", "descriptive", "02_alluvial-combined-extended.tiff"
 -   The 30-42 day observations tend to occur in weeks 4+
 -   **NOTE** by week 8, the majority of samples are not returning any information.
 
-## Weekly TTP Distribution (REMoxTB)
+## Weekly TTP Distribution {.scrollable}
 
 ```{r}
 #| fig-cap: "Distribution of TTP measures at each week post-randomization."
@@ -693,11 +1121,41 @@ df_analysis_remox %>%
   facet_wrap(~weeks_cat)+#, 
              # scales = "free_y") + 
   geom_histogram() + 
-  geom_vline(xintercept = c(30,42), lty = 2) + 
+  geom_vline(xintercept = c(25,42), lty = 2) + 
   scale_x_log10("Days to Positivity, log scale",
                 breaks = c(1,5,10,20,35),
                 labels = c(1,5,10,20,35)) + 
-  theme(axis.title.y = element_blank())
+  theme(axis.title.y = element_blank()) + 
+  labs(title = "REMoxTB")
+
+df_analysis_mams %>% 
+  mutate(weeks_cat = floor(weeks)) %>% #with(., table(weeks_cat))
+  mutate(weeks_cat = factor(weeks_cat)) %>% 
+  ggplot(aes(x = dtp_42)) + 
+  facet_wrap(~weeks_cat)+#, 
+             # scales = "free_y") + 
+  geom_histogram() + 
+  geom_vline(xintercept = c(25,42), lty = 2) + 
+  scale_x_log10("Days to Positivity, log scale",
+                breaks = c(1,5,10,20,35),
+                labels = c(1,5,10,20,35)) + 
+  theme(axis.title.y = element_blank()) + 
+  labs(title = "MAMS-TB")
+
+df_analysis_nc002 %>% 
+  mutate(weeks_cat = floor(weeks)) %>% #with(., table(weeks_cat))
+  mutate(weeks_cat = ifelse(weeks_cat <= 0, 0, weeks_cat)) %>% 
+  mutate(weeks_cat = factor(weeks_cat)) %>% 
+  ggplot(aes(x = dtp_42)) + 
+  facet_wrap(~weeks_cat)+#, 
+             # scales = "free_y") + 
+  geom_histogram() + 
+  geom_vline(xintercept = c(25,42), lty = 2) + 
+  scale_x_log10("Days to Positivity, log scale",
+                breaks = c(1,5,10,20,35),
+                labels = c(1,5,10,20,35)) + 
+  theme(axis.title.y = element_blank()) + 
+  labs(title = "NC-002 (MPaZ)")
 ```
 
 ## Takeaway: Weekly TTP Distribution (REMoxTB)
@@ -838,9 +1296,18 @@ load(here("data", "model-generated", "2023-08-15_linear-mams-lod-25.RData"))
 load(here("data", "model-generated", "2023-07-20_linear-remox-lod-42.RData"))
 load(here("data", "model-generated", "2023-07-31_linear-remox-lod-30.RData"))
 load(here("data", "model-generated", "2023-09-01_linear-remox-lod-25.RData"))
-load(here("data", "model-generated", "2024-02-09_linear-nc002-lod-42.RData"))
-load(here("data", "model-generated", "2024-02-09_linear-nc002-lod-30.RData"))
-load(here("data", "model-generated", "2024-02-09_linear-nc002-lod-25.RData"))
+load(here("data", "model-generated", "2024-02-16_linear-nc002-lod-42.RData"))
+load(here("data", "model-generated", "2024-02-16_linear-nc002-lod-30.RData"))
+load(here("data", "model-generated", "2024-02-16_linear-nc002-lod-25.RData"))
+load(here("data", "model-generated", "2024-02-16_linear-nc006-lod-42.RData"))
+load(here("data", "model-generated", "2024-02-16_linear-nc006-lod-30.RData"))
+load(here("data", "model-generated", "2024-02-16_linear-nc006-lod-25.RData"))
+load(here("data", "model-generated", "2024-02-16_linear-s29-lod-42.RData"))
+load(here("data", "model-generated", "2024-02-16_linear-s29-lod-30.RData"))
+load(here("data", "model-generated", "2024-02-16_linear-s29-lod-25.RData"))
+load(here("data", "model-generated", "2024-02-16_linear-s29x-lod-42.RData"))
+load(here("data", "model-generated", "2024-02-16_linear-s29x-lod-30.RData"))
+load(here("data", "model-generated", "2024-02-16_linear-s29x-lod-25.RData"))
 ```
 
 ## MAMS-TB: Linear (treatment level)
@@ -1014,12 +1481,186 @@ coefs_nc002 %>%
              end_row = 9)
 ```
 
+## NC-006 (STAND)
+
+```{r}
+coef_nc006_25 <-
+    coef(m_linear_nc006_25, summary = F)$ACTARM %>% 
+    as_tibble()
+
+t25 <- coef_nc006_25 %>% 
+  gather() %>% 
+  group_by(key) %>% 
+  mode_hdi(value) %>% 
+  mutate_if(is.double, round, digits = 3) %>% 
+  mutate(LOQ = 25)
+
+coef_nc006_30 <-
+    coef(m_linear_nc006_30, summary = F)$ACTARM %>% 
+    as_tibble()
+
+t30 <- coef_nc006_30 %>% 
+  gather() %>% 
+  group_by(key) %>% 
+  mode_hdi(value) %>% 
+  mutate_if(is.double, round, digits = 3) %>% 
+  mutate(LOQ = 30)
+
+coef_nc006_42 <-
+    coef(m_linear_nc006_42, summary = F)$ACTARM %>% 
+    as_tibble()
+
+coefs_nc006 <- coef_nc006_42 %>% 
+  gather() %>% 
+  group_by(key) %>% 
+  mode_hdi(value) %>% 
+  mutate_if(is.double, round, digits = 3) %>% 
+  mutate(LOQ = 42) %>% 
+  bind_rows(t30) %>% 
+  bind_rows(t25) %>% 
+  filter(str_detect(key, "weeks")) 
+
+coefs_nc006 %>% 
+  transmute(key, value, .lower, .upper, `CI width` = abs(.upper - .lower), .point, .interval) %>% 
+  rename(" " = key, "Estimate" = value, "CI.l" = .lower, "CI.u" = .upper, #"CI width" = .width,
+         "Point Estimation" = .point, "CI Estimation" = .interval) %>% 
+  kable(digits = 3,
+        caption = "(NC-006 STAND) Posterior group-level estimates of slope from the 25-, 30- and 42-day models (95% Credible Intervals).") %>% 
+  kable_styling(font_size = 16) %>% 
+  pack_rows(group_label = "LOQ = 42", 
+             start_row = 1,
+             end_row = 3) %>% 
+  pack_rows(group_label = "LOQ = 30",
+             start_row = 4,
+             end_row = 6) %>% 
+  pack_rows(group_label = "LOQ = 25",
+             start_row = 7,
+             end_row = 9)
+```
+
+## Study 29
+
+```{r}
+coef_s29_25 <-
+    coef(m_linear_s29_25, summary = F)$ACTARM %>% 
+    as_tibble()
+
+t25 <- coef_s29_25 %>% 
+  gather() %>% 
+  group_by(key) %>% 
+  mode_hdi(value) %>% 
+  mutate_if(is.double, round, digits = 3) %>% 
+  mutate(LOQ = 25)
+
+coef_s29_30 <-
+    coef(m_linear_s29_30, summary = F)$ACTARM %>% 
+    as_tibble()
+
+t30 <- coef_s29_30 %>% 
+  gather() %>% 
+  group_by(key) %>% 
+  mode_hdi(value) %>% 
+  mutate_if(is.double, round, digits = 3) %>% 
+  mutate(LOQ = 30)
+
+coef_s29_42 <-
+    coef(m_linear_s29_42, summary = F)$ACTARM %>% 
+    as_tibble()
+
+coefs_s29 <- coef_s29_42 %>% 
+  gather() %>% 
+  group_by(key) %>% 
+  mode_hdi(value) %>% 
+  mutate_if(is.double, round, digits = 3) %>% 
+  mutate(LOQ = 42) %>% 
+  bind_rows(t30) %>% 
+  bind_rows(t25) %>% 
+  filter(str_detect(key, "weeks")) 
+
+coefs_s29 %>% 
+  transmute(key, value, .lower, .upper, `CI width` = abs(.upper - .lower), .point, .interval) %>% 
+  rename(" " = key, "Estimate" = value, "CI.l" = .lower, "CI.u" = .upper, #"CI width" = .width,
+         "Point Estimation" = .point, "CI Estimation" = .interval) %>% 
+  kable(digits = 3,
+        caption = "(NC-006 STAND) Posterior group-level estimates of slope from the 25-, 30- and 42-day models (95% Credible Intervals).") %>% 
+  kable_styling(font_size = 16) %>% 
+  pack_rows(group_label = "LOQ = 42", 
+             start_row = 1,
+             end_row = 3) %>% 
+  pack_rows(group_label = "LOQ = 30",
+             start_row = 4,
+             end_row = 6) %>% 
+  pack_rows(group_label = "LOQ = 25",
+             start_row = 7,
+             end_row = 9)
+```
+
+## Study 29x
+
+```{r}
+coef_s29x_25 <-
+    coef(m_linear_s29x_25, summary = F)$ACTARM %>% 
+    as_tibble()
+
+t25 <- coef_s29x_25 %>% 
+  gather() %>% 
+  group_by(key) %>% 
+  mode_hdi(value) %>% 
+  mutate_if(is.double, round, digits = 3) %>% 
+  mutate(LOQ = 25)
+
+coef_s29x_30 <-
+    coef(m_linear_s29x_30, summary = F)$ACTARM %>% 
+    as_tibble()
+
+t30 <- coef_s29x_30 %>% 
+  gather() %>% 
+  group_by(key) %>% 
+  mode_hdi(value) %>% 
+  mutate_if(is.double, round, digits = 3) %>% 
+  mutate(LOQ = 30)
+
+coef_s29x_42 <-
+    coef(m_linear_s29x_42, summary = F)$ACTARM %>% 
+    as_tibble()
+
+coefs_s29x <- coef_s29x_42 %>% 
+  gather() %>% 
+  group_by(key) %>% 
+  mode_hdi(value) %>% 
+  mutate_if(is.double, round, digits = 3) %>% 
+  mutate(LOQ = 42) %>% 
+  bind_rows(t30) %>% 
+  bind_rows(t25) %>% 
+  filter(str_detect(key, "weeks")) 
+
+coefs_s29x %>% 
+  transmute(key, value, .lower, .upper, `CI width` = abs(.upper - .lower), .point, .interval) %>% 
+  rename(" " = key, "Estimate" = value, "CI.l" = .lower, "CI.u" = .upper, #"CI width" = .width,
+         "Point Estimation" = .point, "CI Estimation" = .interval) %>% 
+  kable(digits = 3,
+        caption = "(NC-006 STAND) Posterior group-level estimates of slope from the 25-, 30- and 42-day models (95% Credible Intervals).") %>% 
+  kable_styling(font_size = 16) %>% 
+  pack_rows(group_label = "LOQ = 42", 
+             start_row = 1,
+             end_row = 3) %>% 
+  pack_rows(group_label = "LOQ = 30",
+             start_row = 4,
+             end_row = 6) %>% 
+  pack_rows(group_label = "LOQ = 25",
+             start_row = 7,
+             end_row = 9)
+```
+
 ## Forest plot
 
 ```{r}
 bind_rows(mutate(coefs_mams, Data = "MAMS-TB"), 
           mutate(coefs_remox, Data = "REMoxTB"),
-          mutate(coefs_nc002, Data = "NC-002 (M-Pa-Z)"),) %>% 
+          mutate(coefs_nc002, Data = "NC-002 (M-Pa-Z)"),
+          mutate(coefs_nc006, Data = "NC-006 (STAND)"),
+          mutate(coefs_s29, Data = "Study 29"),
+          mutate(coefs_s29x, Data = "Study 29X")) %>% 
   mutate(key = str_remove(key, pattern = ".weeks")) %>% 
   mutate(key = str_remove(key, pattern = c("1. "))) %>%
   mutate(key = str_remove(key, pattern = c("2. "))) %>%
@@ -1083,6 +1724,36 @@ coefs_nc002 %>%
             CI.width.ratio = CI.width[LOQ == 30]/CI.width[LOQ == 42]) %>% 
   kable(digits = 4,
         caption = "(NC-002 M-Pa-Z) Change in point estimate and confidence interval width (30 days / 42 days).") %>% 
+  kable_styling(font_size = 20)
+
+coefs_nc006 %>% 
+  # mutate(LOQ = c(rep(42, 3), rep(30,3), rep(25,3))) %>% 
+  mutate(CI.width = abs(.upper - .lower)) %>% 
+  group_by(key) %>% 
+  summarise(point.estimate.ratio = value[LOQ == 30]/value[LOQ == 42],
+            CI.width.ratio = CI.width[LOQ == 30]/CI.width[LOQ == 42]) %>% 
+  kable(digits = 4,
+        caption = "(NC-006 STAND) Change in point estimate and confidence interval width (30 days / 42 days).") %>% 
+  kable_styling(font_size = 20)
+
+coefs_s29 %>% 
+  # mutate(LOQ = c(rep(42, 3), rep(30,3), rep(25,3))) %>% 
+  mutate(CI.width = abs(.upper - .lower)) %>% 
+  group_by(key) %>% 
+  summarise(point.estimate.ratio = value[LOQ == 30]/value[LOQ == 42],
+            CI.width.ratio = CI.width[LOQ == 30]/CI.width[LOQ == 42]) %>% 
+  kable(digits = 4,
+        caption = "(Study 29) Change in point estimate and confidence interval width (30 days / 42 days).") %>% 
+  kable_styling(font_size = 20)
+
+coefs_s29x %>% 
+  # mutate(LOQ = c(rep(42, 3), rep(30,3), rep(25,3))) %>% 
+  mutate(CI.width = abs(.upper - .lower)) %>% 
+  group_by(key) %>% 
+  summarise(point.estimate.ratio = value[LOQ == 30]/value[LOQ == 42],
+            CI.width.ratio = CI.width[LOQ == 30]/CI.width[LOQ == 42]) %>% 
+  kable(digits = 4,
+        caption = "(Study 29) Change in point estimate and confidence interval width (30 days / 42 days).") %>% 
   kable_styling(font_size = 20)
 ```
 
@@ -1302,6 +1973,9 @@ df_25r <- relative_function_remox(m_linear_remox_25, loq = 25)
 df_42nc002 <- relative_function_nc002(m_linear_nc002_42, loq = 42)
 df_30nc002 <- relative_function_nc002(m_linear_nc002_30, loq = 30)
 df_25nc002 <- relative_function_nc002(m_linear_nc002_25, loq = 25)
+df_42nc006 <- relative_function_nc006(m_linear_nc006_42, loq = 42)
+df_30nc006 <- relative_function_nc006(m_linear_nc006_30, loq = 30)
+df_25nc006 <- relative_function_nc006(m_linear_nc006_25, loq = 25)
 ```
 
 ## MAMS
@@ -1500,6 +2174,51 @@ ggsave(filename = here("graphs", "publication", "MAMS_REMOX-differentiation-regi
 ```
 >>>>>>> 0aa3b386ed7820cb47d0236529730da0f1c09026
 
+<<<<<<< HEAD
+=======
+```{r}
+p_mams_rel <- mams_differentiation %>% 
+  group_by(regimen, percent.change) %>% 
+  mutate(relative.posterior.prob = posterior.prob/posterior.prob[LOQ == "42 days"]) %>% 
+  filter(LOQ != "42 days") %>% 
+  ggplot(aes(x = `Percent Change`, y = relative.posterior.prob)) + 
+  geom_line(aes(lty = LOQ, group = LOQ)) + 
+  facet_wrap(~regimen) + 
+  geom_hline(yintercept = 1,
+             lty = 2,
+             col = "darkgray") + 
+  labs(x = TeX("$\\tau$, Relative change (%) in log$_{10}$TTP slope as compared to HRZE"),
+       y = TeX("Relative posterior probability $\\gamma_{1} \\geq \\tau$" )) 
+
+p_remox_rel <- remox_differentiation %>% 
+  group_by(regimen, percent.change) %>% 
+  mutate(relative.posterior.prob = posterior.prob/posterior.prob[LOQ == "42 days"]) %>% 
+  filter(LOQ != "42 days") %>% 
+  ggplot(aes(x = `Percent Change`, y = relative.posterior.prob)) + 
+  geom_line(aes(lty = LOQ, group = LOQ)) + 
+  facet_wrap(~regimen) + 
+  geom_hline(yintercept = 1,
+             lty = 2,
+             col = "darkgray") + 
+  labs(x = TeX("$\\tau$, Relative change (%) in log$_{10}$TTP slope as compared to HRZE"),
+       y = TeX("Relative posterior probability $\\gamma_{1} \\geq \\tau$" )) +
+  coord_cartesian(ylim = c(0,2))
+
+ p_remox_rel + p_mams_rel +
+  plot_layout(guides = "collect",
+              width = c(1.2,2)) +
+  plot_annotation(tag_levels = "A") 
+
+ggsave(filename = here("graphs", "publication", "MAMS_REMOX-differentiation-regimens_relative.png"),
+       device = "png",
+       units = "in",
+       height = 7,
+       width = 14)
+```
+
+
+## Takeaway
+>>>>>>> bdcf8b491528a3737b5bcde124f0643adc491514
 
 ```
 
@@ -1778,6 +2497,8 @@ ggsave(filename = here("graphs", "publication", "NC-005_replicate-point-plot.png
 Not super satisfied with this plot, but I do like that it seems to confirm that the deviance in replicates increases as the expected value of TTP increases (e.g., with time).
 
 ```{r}
+load("~/Documents/ucsf-research-git/tb-pacts-general/generated-datasets/2024-02-16_tb-pacts-data-with-ttp-measures.RData")
+list2env(tb_pacts, envir = environment())
 df_NC_002 %>% 
   # Smaller dataset to work with
   dplyr::select(USUBJID, MBDY, MBSTRESN, ACTARM) %>% 
@@ -2269,6 +2990,41 @@ ggsave(filename = here("graphs", "publication",
 m_linear_mams_25
 ```
 
+```{r}
+#| eval: false
+s1 <- summary(m_linear_mams_25, priors = TRUE)
+s2 <- summary(m_linear_mams_30)
+s3 <- summary(m_linear_mams_42)
+bind_rows(s1$fixed, 
+          s1$spec_pars,
+          s2$fixed, 
+          s2$spec_pars,
+          s3$fixed, 
+          s3$spec_pars) %>% 
+  rownames_to_column("Coefficient") %>% 
+  mutate(`95% HCI` = )
+  mutate(Coefficient = case_when(str_detect(pattern = "Intercept", string = Coefficient) ~ "$\\gamma_0$",
+                                 str_detect(pattern = "weeks", string = Coefficient) ~ "$\\gamma_1$",
+                                 TRUE ~ "$\\sigma_1$")) %>% 
+  kable(digits = c(2,2,2,2,2,3,1,1),
+        format = "latex",
+        booktabs = TRUE,
+        escape = FALSE,
+        caption = "MAMS-TB model results.") %>% 
+  kable_styling() %>% 
+  group_rows("ULOQ$_M$ = 25",
+             start_row = 1,
+             end_row = 3) %>% 
+  group_rows("ULOQ$_M$ = 30",
+             start_row = 4,
+             end_row = 6) %>% 
+  group_rows("ULOQ$_M$ = 42",
+             start_row = 7,
+             end_row = 9) 
+
+
+```
+
 ## MAMS-TB: Linear 25-day posterior {.scrollable}
 
 ```{r}
@@ -2419,3 +3175,6 @@ m_nonlinear_remox_42
 ```{r}
 plot(m_nonlinear_remox_42, ask = FALSE)
 ```
+
+
+## Group Statistics
