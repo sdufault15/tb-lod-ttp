@@ -1349,18 +1349,21 @@ load(here("data", "model-generated", "2023-08-15_linear-mams-lod-25.RData"))
 load(here("data", "model-generated", "2023-07-20_linear-remox-lod-42.RData"))
 load(here("data", "model-generated", "2023-07-31_linear-remox-lod-30.RData"))
 load(here("data", "model-generated", "2023-09-01_linear-remox-lod-25.RData"))
-load(here("data", "model-generated", "2024-03-26_linear-nc002-lod-42.RData"))
-load(here("data", "model-generated", "2024-03-26_linear-nc002-lod-30.RData"))
-load(here("data", "model-generated", "2024-03-26_linear-nc002-lod-25.RData"))
-load(here("data", "model-generated", "2024-02-16_linear-nc006-lod-42.RData"))
-load(here("data", "model-generated", "2024-02-16_linear-nc006-lod-30.RData"))
-load(here("data", "model-generated", "2024-02-16_linear-nc006-lod-25.RData"))
-load(here("data", "model-generated", "2024-02-16_linear-s29-lod-42.RData"))
-load(here("data", "model-generated", "2024-02-16_linear-s29-lod-30.RData"))
-load(here("data", "model-generated", "2024-02-16_linear-s29-lod-25.RData"))
-load(here("data", "model-generated", "2024-02-16_linear-s29x-lod-42.RData"))
-load(here("data", "model-generated", "2024-02-16_linear-s29x-lod-30.RData"))
-load(here("data", "model-generated", "2024-02-16_linear-s29x-lod-25.RData"))
+load(here("data", "model-generated", "2024-03-27_linear-nc002-lod-42.RData"))
+load(here("data", "model-generated", "2024-03-27_linear-nc002-lod-30.RData"))
+load(here("data", "model-generated", "2024-03-27_linear-nc002-lod-25.RData"))
+load(here("data", "model-generated", "2024-03-27_linear-nc005-lod-42.RData"))
+load(here("data", "model-generated", "2024-03-27_linear-nc005-lod-30.RData"))
+load(here("data", "model-generated", "2024-03-27_linear-nc005-lod-25.RData"))
+load(here("data", "model-generated", "2024-03-27_linear-nc006-lod-42.RData"))
+load(here("data", "model-generated", "2024-03-27_linear-nc006-lod-30.RData"))
+load(here("data", "model-generated", "2024-03-27_linear-nc006-lod-25.RData"))
+load(here("data", "model-generated", "2024-03-27_linear-s29-lod-42.RData"))
+load(here("data", "model-generated", "2024-03-27_linear-s29-lod-30.RData"))
+load(here("data", "model-generated", "2024-03-27_linear-s29-lod-25.RData"))
+load(here("data", "model-generated", "2024-03-27_linear-s29x-lod-42.RData"))
+load(here("data", "model-generated", "2024-03-27_linear-s29x-lod-30.RData"))
+load(here("data", "model-generated", "2024-03-27_linear-s29x-lod-25.RData"))
 ```
 
 ## MAMS-TB: Linear (treatment level)
@@ -2054,6 +2057,8 @@ p_mams_diff <- mams_differentiation %>%
        color = "ULOQ")+ 
   scale_color_manual(values = c(ucsf_col_pal[c(9,2)],"darkgray")) + 
   theme(legend.position = "bottom")
+
+p_mams_diff
 ```
 
 ```{r}
@@ -2174,10 +2179,7 @@ ggsave(filename = here("graphs", "publication", "MAMS_REMOX-differentiation-regi
        height = 7,
        width = 14)
 ```
->>>>>>> 0aa3b386ed7820cb47d0236529730da0f1c09026
 
-<<<<<<< HEAD
-=======
 ```{r}
 p_mams_rel <- mams_differentiation %>% 
   group_by(regimen, percent.change) %>% 
@@ -2220,9 +2222,6 @@ ggsave(filename = here("graphs", "publication", "MAMS_REMOX-differentiation-regi
 
 
 ## Takeaway
->>>>>>> bdcf8b491528a3737b5bcde124f0643adc491514
-
-```
 
 Should we be doing more of a grid-search or can we motivate this better with a S-N exploration first?
 
