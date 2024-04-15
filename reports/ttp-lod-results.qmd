@@ -2152,57 +2152,6 @@ p_remox_diff <- remox_differentiation %>%
        title = "Study: REMoxTB") + 
   scale_color_manual(values = c(ucsf_col_pal[c(9,2)],"darkgray")) 
 
-<<<<<<< HEAD
-## Takeaway
-
-The same trend as was observed in MAMS is not observed in the REMoxTB data, which is perplexing. The 42-day limit of quantification is observed to correlate with a stronger posterior probability of differentiation between the novel regimens and the control (HRZE).
-
-# Investigation of Signal to Noise
-
-## Replicates (REMoxTB + MAMS)
-
-```{r}
-df_replicates_remox <- df_analysis_remox %>% 
-  group_by(trial_no, weeks) %>% 
-  mutate(replicate = n_distinct(dtp_42)) %>% 
-  filter(replicate > 1)
-
-df_replicates_mams <- df_analysis_mams %>% 
-  group_by(patient.id, weeks) %>% 
-  mutate(replicate = n_distinct(dtp_42)) %>% 
-  filter(replicate > 1)
-```
-
-```{r}
-replicate_plot_fun <- function(df, time_var, participant_var, treatment_var, col_palette = ucsf_col_pal, ...){
-  df %>% 
-    dplyr::select(participant_var, time_var, treatment_var, dtp_42,censored_42, replicate) %>% 
-    mutate(replicate = row_number()) %>% 
-    pivot_wider(names_from = "replicate",
-                values_from = "dtp_42") %>% 
-    mutate(censored1 = ifelse(max(c(`1`,`2`),na.rm = TRUE) >= 42, 
-                              "Above LOD = 42", "Below LOD = 42")#, 
-           # ADD BACK IN THE 3RD REPLICATES ONCE BETTER PROCEDURE IS DETERMINED
-           # censored2 = ifelse(max(c(`1`,`3`),na.rm = TRUE) >= 42, 
-           #                    "Above LOD = 42", "Below LOD = 42")
-           ) %>% 
-    ggplot(aes(x = `1`)) +
-    geom_abline(intercept = 0, slope = 1, col = 'red') +
-    geom_point(aes(y = `2`,
-                   col = censored1),
-               alpha = 0.8) +
-    # geom_point(aes(y = `3`,
-    #                col = censored2),
-    #            alpha = 0.8) +
-    scale_color_manual(values = col_palette) +
-    coord_equal() + 
-    labs(x = TeX("DTP$_1$"), y = TeX("DTP$_2$")) + # TeX("DTP$_k$, $k = \\{2,3\\}")) + 
-    theme(legend.position = "bottom",
-          legend.title = element_blank())
-}
-p1 <- replicate_plot_fun(df_replicates_remox, time_var = "weeks", participant_var = "trial_no", treatment_var = "treat")
-p2 <- replicate_plot_fun(df_replicates_mams, time_var = "weeks", participant_var = "patient.id", treatment_var = "Treatm_arm")
-=======
 p_remox_diff
 ```
 
