@@ -207,7 +207,7 @@ save(m_linear_nc005_25,
 ###########################
 # Run the models on NC-006
 ###########################
-load(here("data", "cleaned-data", "2024-03-26_NC-006-clean.RData"))
+load(here("data", "cleaned-data", "2024-04-15_NC-006-clean.RData"))
 m_linear_nc006_42 <- brm(log10(dtp_42) | cens(censored_42) ~ weeks + (1 + weeks | patient.id + ACTARM), # run the model
                          data = df_analysis_nc006,
                          init = 0,
