@@ -132,13 +132,17 @@ Our objective is to examine existing TTP data from various case studies to bette
 -   Study 29x
 
 <!-- THESE DESCRIPTIONS NEED TO BE UPDATED-->
+
 <!-- ## REMoxTB -->
 
 <!-- We will restrict to only those with: -->
 
 <!-- -   `result = 0,1,2` (i.e., only those with a Negative (0), Positive (1), or Unconfirmed Positive (2) result) -->
+
 <!-- -   `bact = 1` (i.e., MGIT) -->
+
 <!-- -   `weeks <= 8` (i.e., only looking at observations within 8 weeks of randomization) -->
+
 <!-- -   `!box_mitt %in% c(10,20,30)` excluding those with late screening failures -->
 
 <!-- ## MAMS -->
@@ -855,7 +859,6 @@ ggsave(file = here("graphs", "descriptive", "01_trajectories-combined.png"),
        units = "in",
        dpi = 300)
 ```
-
 
 ## Data Distribution v. Time
 
@@ -1616,7 +1619,6 @@ coefs_nc002 %>%
              end_row = 9)
 ```
 
-
 ## NC-005 (MPaZB)
 
 ```{r}
@@ -1958,8 +1960,8 @@ coefs_remox %>%
   # mutate(LOQ = c(rep(42, 3), rep(30,3), rep(25,3))) %>% 
   mutate(CI.width = abs(.upper - .lower)) %>% 
   group_by(key) %>% 
-  summarise(point.estimate.ratio = value[LOQ == 30]/value[LOQ == 42],
-            CI.width.ratio = CI.width[LOQ == 30]/CI.width[LOQ == 42]) %>% 
+  summarise(point.estimate.ratio = value[LOQ == 25]/value[LOQ == 42],
+            CI.width.ratio = CI.width[LOQ == 25]/CI.width[LOQ == 42]) %>% 
   kable(digits = 4,
         caption = "(REMoxTB) Change in point estimate and confidence interval width (30 days / 42 days).") %>% 
   kable_styling(font_size = 20)
@@ -1968,18 +1970,28 @@ coefs_nc002 %>%
   # mutate(LOQ = c(rep(42, 3), rep(30,3), rep(25,3))) %>% 
   mutate(CI.width = abs(.upper - .lower)) %>% 
   group_by(key) %>% 
-  summarise(point.estimate.ratio = value[LOQ == 30]/value[LOQ == 42],
-            CI.width.ratio = CI.width[LOQ == 30]/CI.width[LOQ == 42]) %>% 
+  summarise(point.estimate.ratio = value[LOQ == 25]/value[LOQ == 42],
+            CI.width.ratio = CI.width[LOQ == 25]/CI.width[LOQ == 42]) %>% 
   kable(digits = 4,
         caption = "(NC-002 M-Pa-Z) Change in point estimate and confidence interval width (30 days / 42 days).") %>% 
+  kable_styling(font_size = 20)
+
+coefs_nc005 %>% 
+  # mutate(LOQ = c(rep(42, 3), rep(30,3), rep(25,3))) %>% 
+  mutate(CI.width = abs(.upper - .lower)) %>% 
+  group_by(key) %>% 
+  summarise(point.estimate.ratio = value[LOQ == 25]/value[LOQ == 42],
+            CI.width.ratio = CI.width[LOQ == 25]/CI.width[LOQ == 42]) %>% 
+  kable(digits = 4,
+        caption = "(NC-005 MPaZB) Change in point estimate and confidence interval width (30 days / 42 days).") %>% 
   kable_styling(font_size = 20)
 
 coefs_nc006 %>% 
   # mutate(LOQ = c(rep(42, 3), rep(30,3), rep(25,3))) %>% 
   mutate(CI.width = abs(.upper - .lower)) %>% 
   group_by(key) %>% 
-  summarise(point.estimate.ratio = value[LOQ == 30]/value[LOQ == 42],
-            CI.width.ratio = CI.width[LOQ == 30]/CI.width[LOQ == 42]) %>% 
+  summarise(point.estimate.ratio = value[LOQ == 25]/value[LOQ == 42],
+            CI.width.ratio = CI.width[LOQ == 25]/CI.width[LOQ == 42]) %>% 
   kable(digits = 4,
         caption = "(NC-006 STAND) Change in point estimate and confidence interval width (30 days / 42 days).") %>% 
   kable_styling(font_size = 20)
@@ -1988,8 +2000,8 @@ coefs_s29 %>%
   # mutate(LOQ = c(rep(42, 3), rep(30,3), rep(25,3))) %>% 
   mutate(CI.width = abs(.upper - .lower)) %>% 
   group_by(key) %>% 
-  summarise(point.estimate.ratio = value[LOQ == 30]/value[LOQ == 42],
-            CI.width.ratio = CI.width[LOQ == 30]/CI.width[LOQ == 42]) %>% 
+  summarise(point.estimate.ratio = value[LOQ == 25]/value[LOQ == 42],
+            CI.width.ratio = CI.width[LOQ == 25]/CI.width[LOQ == 42]) %>% 
   kable(digits = 4,
         caption = "(Study 29) Change in point estimate and confidence interval width (30 days / 42 days).") %>% 
   kable_styling(font_size = 20)
@@ -1998,10 +2010,10 @@ coefs_s29x %>%
   # mutate(LOQ = c(rep(42, 3), rep(30,3), rep(25,3))) %>% 
   mutate(CI.width = abs(.upper - .lower)) %>% 
   group_by(key) %>% 
-  summarise(point.estimate.ratio = value[LOQ == 30]/value[LOQ == 42],
-            CI.width.ratio = CI.width[LOQ == 30]/CI.width[LOQ == 42]) %>% 
+  summarise(point.estimate.ratio = value[LOQ == 25]/value[LOQ == 42],
+            CI.width.ratio = CI.width[LOQ == 25]/CI.width[LOQ == 42]) %>% 
   kable(digits = 4,
-        caption = "(Study 29) Change in point estimate and confidence interval width (30 days / 42 days).") %>% 
+        caption = "(Study 29x) Change in point estimate and confidence interval width (30 days / 42 days).") %>% 
   kable_styling(font_size = 20)
 ```
 
@@ -2423,7 +2435,6 @@ ggsave(filename = here("graphs", "publication", "MAMS_REMOX-differentiation-regi
        height = 7,
        width = 14)
 ```
-
 
 ## Takeaway
 
@@ -3406,7 +3417,6 @@ m_nonlinear_remox_42
 ```{r}
 plot(m_nonlinear_remox_42, ask = FALSE)
 ```
-
 
 ## Group Statistics {.scrollable}
 
