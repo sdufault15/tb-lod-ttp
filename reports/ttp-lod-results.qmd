@@ -40,6 +40,60 @@ load(here("data", "cleaned-data", "2024-03-26_NC-006-clean.RData"))
 theme_set(ggpubr::theme_pubr())
 ```
 
+```{r}
+# Cleaning
+df_analysis_mams <- df_analysis_mams %>% 
+  # Simplifying treatment names to match manuscript
+  mutate(treat_simple = case_when(str_detect(Treatm_arm, "20ZM") ~ "HR(20)ZM",
+                                  str_detect(Treatm_arm, "20ZQ") ~ "HR(20)ZQ",
+                                  str_detect(Treatm_arm, "35ZE") ~ "HR(35)ZE",
+                                  TRUE ~ Treatm_arm)) %>% 
+  mutate(treat_simple = factor(treat_simple, levels = c("HRZE", "HRZQ", "HR(20)ZM", "HR(20)ZQ", "HR(35)ZE")))
+
+df_analysis_remox <- df_analysis_remox %>% 
+  # Simplifying treatment names to match manuscript
+  mutate(treat_simple = case_when(str_detect(treat, "EHRZ") ~ "HRZE",
+                                  str_detect(treat, "MHRZ") ~ "MHRZ",
+                                  TRUE ~ "EMRZ")) %>% 
+  mutate(treat_simple = factor(treat_simple, levels = c("HRZE", "MHRZ", "EMRZ")))
+
+
+df_analysis_nc002 <- df_analysis_nc002 %>% 
+  # Simplifying treatment names to match manuscript
+  mutate(treat_simple = case_when(str_detect(ACTARM, "RIFAFOUR") ~ "HRZE",
+                                  str_detect(ACTARM, "100 MG") ~ "MPa(100)Z",
+                                  TRUE ~ "MPa(200)Z")) %>% 
+  mutate(treat_simple = factor(treat_simple, levels = c("HRZE", "MPa(100)Z", "MPa(200)Z")))
+
+df_analysis_nc005 <- df_analysis_nc005 %>% 
+  mutate(treat_simple = str_remove(ACTARM, "DS: "))
+df_analysis_nc006 <- df_analysis_nc006 %>% 
+  # Simplifying treatment names to match manuscript
+  mutate(treat_simple = case_when(str_detect(ACTARM, "HRZE") ~ "HRZE",
+                                  str_detect(ACTARM, "100") ~ "MPa(100)Z",
+                                  str_detect(ACTARM, "MPa(200)Z daily for 4 months") ~ "MPa(200)Z (17w)",
+                                  TRUE ~ "MPa(200)Z (26w)")) %>% 
+  mutate(treat_simple = factor(treat_simple, levels = c("HRZE", "MPa(100)Z", "MPa(200)Z (17w)", "MPa(200)Z (26w)")))
+
+df_analysis_s29 <- df_analysis_s29 %>%
+  # Removing the few that weren't treated
+  filter(ACTARM != "Not Treated") %>% 
+  # Simplifying treatment names to match manuscript
+  mutate(treat_simple = case_when(str_detect(ACTARM, "RIFAMPIN") ~ "HRZE",
+                                  TRUE ~ "P(10)RZE")) %>% 
+  mutate(treat_simple = factor(treat_simple, levels = c("HRZE", "P(10)RZE")))
+
+df_analysis_s29x <- df_analysis_s29x %>%
+  # Removing the few that weren't treated
+  filter(ACTARM != "Not Treated") %>% 
+  # Simplifying treatment names to match manuscript
+  mutate(treat_simple = case_when(str_detect(ACTARM, "RIF") ~ "HRZE",
+                                  str_detect(ACTARM, "10") ~ "P(10)RZE",
+                                  str_detect(ACTARM, "15") ~ "P(15)RZE",
+                                  TRUE ~ "P(20)RZE")) %>% 
+  mutate(treat_simple = factor(treat_simple, levels = c("HRZE", "P(10)RZE", "P(15)RZE", "P(20)RZE")))
+```
+
 # General
 
 ## Overview (1/2)
@@ -78,13 +132,17 @@ Our objective is to examine existing TTP data from various case studies to bette
 -   Study 29x
 
 <!-- THESE DESCRIPTIONS NEED TO BE UPDATED-->
+
 <!-- ## REMoxTB -->
 
 <!-- We will restrict to only those with: -->
 
 <!-- -   `result = 0,1,2` (i.e., only those with a Negative (0), Positive (1), or Unconfirmed Positive (2) result) -->
+
 <!-- -   `bact = 1` (i.e., MGIT) -->
+
 <!-- -   `weeks <= 8` (i.e., only looking at observations within 8 weeks of randomization) -->
+
 <!-- -   `!box_mitt %in% c(10,20,30)` excluding those with late screening failures -->
 
 <!-- ## MAMS -->
@@ -331,7 +389,7 @@ p1 <- df_analysis_remox %>%
   # Averaging the replicate measures
   group_by(trial_no, weeks) %>% 
   mutate(dtp_42_avg = mean(dtp_42)) %>% 
-  ggplot(aes(x = weeks, y = dtp_42, col = treat, lty = treat)) + 
+  ggplot(aes(x = weeks, y = dtp_42, col = treat_simple, lty = treat_simple)) + 
   # geom_point(alpha = 0.3,
   #            position = position_jitter(width = 0.1,height = 0)) +
   geom_smooth(method = lm, 
@@ -354,7 +412,7 @@ p2 <- df_analysis_remox %>%
   # Averaging the replicate measures
   mutate(dtp_42_avg = mean(dtp_42)) %>% 
   ggplot(aes(x = weeks, y = dtp_42_avg, group=trial_no)) + 
-  facet_wrap(~treat, ncol = 1) + 
+  facet_wrap(~treat_simple, ncol = 1) + 
   geom_line(alpha = 0.1,
             col = "darkgray") + 
   geom_smooth(aes(group = treat,
@@ -415,7 +473,7 @@ p1_mams <- df_analysis_mams %>%
   # Averaging the replicate measures
   group_by(patient.id, weeks) %>% 
   mutate(dtp_42_avg = mean(dtp_42)) %>% 
-  ggplot(aes(x = weeks, y = dtp_42, col = Treatm_arm, lty = Treatm_arm)) + 
+  ggplot(aes(x = weeks, y = dtp_42, col = treat_simple, lty = treat_simple)) + 
   # geom_point(alpha = 0.3,
   #            position = position_jitter(width = 0.1,height = 0)) +
   geom_smooth(method = lm, 
@@ -439,7 +497,7 @@ p2_mams <- df_analysis_mams %>%
   group_by(patient.id, weeks) %>% 
   mutate(dtp_42_avg = mean(dtp_42)) %>%
   ggplot(aes(x = weeks, y = dtp_42_avg, group=patient.id)) + 
-  facet_wrap(~Treatm_arm, ncol = 1) + 
+  facet_wrap(~treat_simple, ncol = 1) + 
   geom_line(alpha = 0.3,
             col = "darkgray") + 
   geom_smooth(aes(group = Treatm_arm,
@@ -506,7 +564,7 @@ p1_nc002 <- df_analysis_nc002 %>%
   # Averaging the replicate measures
   group_by(USUBJID, weeks) %>% 
   mutate(dtp_42_avg = mean(dtp_42)) %>% 
-  ggplot(aes(x = weeks, y = dtp_42, col = ACTARM, lty = ACTARM)) + 
+  ggplot(aes(x = weeks, y = dtp_42, col = treat_simple, lty = treat_simple)) + 
   # geom_point(alpha = 0.3,
   #            position = position_jitter(width = 0.1,height = 0)) +
   geom_smooth(method = lm, 
@@ -531,7 +589,7 @@ p2_nc002 <- df_analysis_nc002 %>%
   group_by(USUBJID, weeks) %>% 
   mutate(dtp_42_avg = mean(dtp_42)) %>%
   ggplot(aes(x = weeks, y = dtp_42_avg, group=USUBJID)) + 
-  facet_wrap(~ACTARM, ncol = 1) + 
+  facet_wrap(~treat_simple, ncol = 1) + 
   geom_line(alpha = 0.3,
             col = "darkgray") + 
   geom_smooth(aes(group = ACTARM,
@@ -622,7 +680,7 @@ p1_nc006 <- df_analysis_nc006 %>%
   # Averaging the replicate measures
   group_by(patient.id, weeks) %>% 
   mutate(dtp_42_avg = mean(dtp_42)) %>% 
-  ggplot(aes(x = weeks, y = dtp_42, col = ACTARM, lty = ACTARM)) + 
+  ggplot(aes(x = weeks, y = dtp_42, col = treat_simple, lty = treat_simple)) + 
   # geom_point(alpha = 0.3,
   #            position = position_jitter(width = 0.1,height = 0)) +
   geom_smooth(method = lm, 
@@ -647,7 +705,7 @@ p2_nc006 <- df_analysis_nc006 %>%
   group_by(patient.id, weeks) %>% 
   mutate(dtp_42_avg = mean(dtp_42)) %>%
   ggplot(aes(x = weeks, y = dtp_42_avg, group=patient.id)) + 
-  facet_wrap(~ACTARM, ncol = 1) + 
+  facet_wrap(~treat_simple, ncol = 1) + 
   geom_line(alpha = 0.3,
             col = "darkgray") + 
   geom_smooth(aes(group = ACTARM,
@@ -680,7 +738,7 @@ p1_s29 <- df_analysis_s29 %>%
   # Averaging the replicate measures
   group_by(patient.id, weeks) %>% 
   mutate(dtp_42_avg = mean(dtp_42)) %>% 
-  ggplot(aes(x = weeks, y = dtp_42, col = ACTARM, lty = ACTARM)) + 
+  ggplot(aes(x = weeks, y = dtp_42, col = treat_simple, lty = treat_simple)) + 
   # geom_point(alpha = 0.3,
   #            position = position_jitter(width = 0.1,height = 0)) +
   geom_smooth(method = lm, 
@@ -705,7 +763,7 @@ p2_s29 <- df_analysis_s29 %>%
   group_by(patient.id, weeks) %>% 
   mutate(dtp_42_avg = mean(dtp_42)) %>%
   ggplot(aes(x = weeks, y = dtp_42_avg, group=patient.id)) + 
-  facet_wrap(~ACTARM, ncol = 1) + 
+  facet_wrap(~treat_simple, ncol = 1) + 
   geom_line(alpha = 0.3,
             col = "darkgray") + 
   geom_smooth(aes(group = ACTARM,
@@ -738,7 +796,7 @@ p1_s29x <- df_analysis_s29x %>%
   # Averaging the replicate measures
   group_by(patient.id, weeks) %>% 
   mutate(dtp_42_avg = mean(dtp_42)) %>% 
-  ggplot(aes(x = weeks, y = dtp_42, col = ACTARM, lty = ACTARM)) + 
+  ggplot(aes(x = weeks, y = dtp_42, col = treat_simple, lty = treat_simple)) + 
   # geom_point(alpha = 0.3,
   #            position = position_jitter(width = 0.1,height = 0)) +
   geom_smooth(method = lm, 
@@ -763,7 +821,7 @@ p2_s29x <- df_analysis_s29x %>%
   group_by(patient.id, weeks) %>% 
   mutate(dtp_42_avg = mean(dtp_42)) %>%
   ggplot(aes(x = weeks, y = dtp_42_avg, group=patient.id)) + 
-  facet_wrap(~ACTARM, ncol = 1) + 
+  facet_wrap(~treat_simple, ncol = 1) + 
   geom_line(alpha = 0.3,
             col = "darkgray") + 
   geom_smooth(aes(group = ACTARM,
@@ -802,17 +860,15 @@ p_mams /
   p_nc006 / 
   p_s29 / 
   p_s29x +
-  plot_layout(ncol = 2
-              )
+  plot_layout(ncol = 2) 
 
 ggsave(file = here("graphs", "descriptive", "01_trajectories-combined.png"),
        device = "png",
-       height = 15,
+       height = 20,
        width = 25,
        units = "in",
        dpi = 300)
 ```
-
 
 ## Data Distribution v. Time
 
@@ -1124,48 +1180,127 @@ ggsave(file = here("graphs", "descriptive", "02_alluvial-combined-extended.tiff"
 
 ```{r}
 #| fig-cap: "Distribution of TTP measures at each week post-randomization."
-df_analysis_remox %>% 
+p0 <- df_analysis_remox %>% 
   mutate(weeks_cat = floor(weeks)) %>% #with(., table(weeks_cat))
   mutate(weeks_cat = factor(weeks_cat)) %>% 
   ggplot(aes(x = dtp_42)) + 
-  facet_wrap(~weeks_cat)+#, 
+  facet_wrap(~weeks_cat, nrow = 1)+#, 
              # scales = "free_y") + 
   geom_histogram() + 
-  geom_vline(xintercept = c(25,42), lty = 2) + 
-  scale_x_log10("Days to Positivity, log scale",
-                breaks = c(1,5,10,20,35),
-                labels = c(1,5,10,20,35)) + 
+  # geom_vline(xintercept = c(25,42), lty = 2) + 
+  scale_x_log10("",#Days to Positivity, log scale",
+                breaks = c(1,5,10,25,42),
+                labels = c(1,5,10,25,42)) + 
   theme(axis.title.y = element_blank()) + 
+  coord_cartesian(xlim = c(1,42)) +
   labs(title = "REMoxTB")
 
-df_analysis_mams %>% 
+p1 <- df_analysis_mams %>% 
   mutate(weeks_cat = floor(weeks)) %>% #with(., table(weeks_cat))
   mutate(weeks_cat = factor(weeks_cat)) %>% 
   ggplot(aes(x = dtp_42)) + 
-  facet_wrap(~weeks_cat)+#, 
+  facet_wrap(~weeks_cat, nrow = 1)+#, 
              # scales = "free_y") + 
   geom_histogram() + 
-  geom_vline(xintercept = c(25,42), lty = 2) + 
-  scale_x_log10("Days to Positivity, log scale",
-                breaks = c(1,5,10,20,35),
-                labels = c(1,5,10,20,35)) + 
+  # geom_vline(xintercept = c(25,42), lty = 2) + 
+  scale_x_log10("",#Days to Positivity, log scale",
+                breaks = c(1,5,10,25,42),
+                labels = c(1,5,10,25,42)) + 
   theme(axis.title.y = element_blank()) + 
+  coord_cartesian(xlim = c(1,42)) +
   labs(title = "MAMS-TB")
 
-df_analysis_nc002 %>% 
+p2 <- df_analysis_nc002 %>% 
   mutate(weeks_cat = floor(weeks)) %>% #with(., table(weeks_cat))
   mutate(weeks_cat = ifelse(weeks_cat <= 0, 0, weeks_cat)) %>% 
   mutate(weeks_cat = factor(weeks_cat)) %>% 
   ggplot(aes(x = dtp_42)) + 
-  facet_wrap(~weeks_cat)+#, 
+  facet_wrap(~weeks_cat, nrow = 1)+#, 
              # scales = "free_y") + 
   geom_histogram() + 
-  geom_vline(xintercept = c(25,42), lty = 2) + 
-  scale_x_log10("Days to Positivity, log scale",
-                breaks = c(1,5,10,20,35),
-                labels = c(1,5,10,20,35)) + 
+  # geom_vline(xintercept = c(25,42), lty = 2) + 
+  scale_x_log10("",#Days to Positivity, log scale",
+                breaks = c(1,5,10,25,42),
+                labels = c(1,5,10,25,42)) + 
   theme(axis.title.y = element_blank()) + 
+  coord_cartesian(xlim = c(1,42)) +
   labs(title = "NC-002 (MPaZ)")
+
+p3 <- df_analysis_nc005 %>% 
+  mutate(weeks_cat = floor(weeks)) %>% #with(., table(weeks_cat))
+  mutate(weeks_cat = ifelse(weeks_cat <= 0, 0, weeks_cat)) %>% 
+  mutate(weeks_cat = factor(weeks_cat)) %>% 
+  ggplot(aes(x = dtp_42)) + 
+  facet_wrap(~weeks_cat, nrow = 1)+#, 
+             # scales = "free_y") + 
+  geom_histogram() + 
+  # geom_vline(xintercept = c(25,42), lty = 2) + 
+  scale_x_log10("",#Days to Positivity, log scale",
+                breaks = c(1,5,10,25,42),
+                labels = c(1,5,10,25,42)) + 
+  coord_cartesian(xlim = c(1,42)) +
+  theme(axis.title.y = element_blank()) + 
+  labs(title = "NC-005 (MPaZB)")
+
+p4 <- df_analysis_nc006 %>% 
+  mutate(weeks_cat = floor(weeks)) %>% #with(., table(weeks_cat))
+  mutate(weeks_cat = ifelse(weeks_cat <= 0, 0, weeks_cat)) %>% 
+  mutate(weeks_cat = factor(weeks_cat)) %>% 
+  ggplot(aes(x = dtp_42)) + 
+  facet_wrap(~weeks_cat, nrow = 1)+#, 
+             # scales = "free_y") + 
+  geom_histogram() + 
+  # geom_vline(xintercept = c(25,42), lty = 2) + 
+  scale_x_log10("Days to Positivity, log scale",
+                breaks = c(1,5,10,25,42),
+                labels = c(1,5,10,25,42)) + 
+  coord_cartesian(xlim = c(1,42)) +
+  theme(axis.title.y = element_blank()) + 
+  labs(title = "NC-006 (STAND)")
+
+p5 <- df_analysis_s29 %>% 
+  mutate(weeks_cat = floor(weeks)) %>% #with(., table(weeks_cat))
+  mutate(weeks_cat = ifelse(weeks_cat <= 0, 0, weeks_cat)) %>% 
+  mutate(weeks_cat = factor(weeks_cat)) %>% 
+  ggplot(aes(x = dtp_42)) + 
+  facet_wrap(~weeks_cat, nrow = 1)+#, 
+             # scales = "free_y") + 
+  geom_histogram() + 
+  # geom_vline(xintercept = c(25,42), lty = 2) + 
+  scale_x_log10("",#Days to Positivity, log scale",
+                breaks = c(1,5,10,25,42),
+                labels = c(1,5,10,25,42)) + 
+  coord_cartesian(xlim = c(1,42)) +
+  theme(axis.title.y = element_blank()) + 
+  labs(title = "Study 29")
+
+p6 <- df_analysis_s29x %>% 
+  mutate(weeks_cat = floor(weeks)) %>% #with(., table(weeks_cat))
+  mutate(weeks_cat = ifelse(weeks_cat <= 0, 0, weeks_cat)) %>% 
+  mutate(weeks_cat = factor(weeks_cat)) %>% 
+  ggplot(aes(x = dtp_42)) + 
+  facet_wrap(~weeks_cat, nrow = 1)+#, 
+             # scales = "free_y") + 
+  geom_histogram() + 
+  # geom_vline(xintercept = c(25,42), lty = 2) + 
+  scale_x_log10("Days to Positivity, log scale",
+                breaks = c(1,5,10,25,42),
+                labels = c(1,5,10,25,42)) + 
+  coord_cartesian(xlim = c(1,42)) +
+  theme(axis.title.y = element_blank()) + 
+  labs(title = "Study 29X")
+
+p0 / p1 / p2 / p3 / p4 / p5 / p6+ 
+  plot_layout(guides = "collect")
+```
+
+```{r}
+#| eval: false
+ggsave(here("graphs", "descriptive", "all-weekly-histograms.png"),
+       device = "png",
+       height = 18, 
+       width = 15,
+       units = "in")
 ```
 
 ## Takeaway: Weekly TTP Distribution (REMoxTB)
@@ -1306,18 +1441,21 @@ load(here("data", "model-generated", "2023-08-15_linear-mams-lod-25.RData"))
 load(here("data", "model-generated", "2023-07-20_linear-remox-lod-42.RData"))
 load(here("data", "model-generated", "2023-07-31_linear-remox-lod-30.RData"))
 load(here("data", "model-generated", "2023-09-01_linear-remox-lod-25.RData"))
-load(here("data", "model-generated", "2024-02-16_linear-nc002-lod-42.RData"))
-load(here("data", "model-generated", "2024-02-16_linear-nc002-lod-30.RData"))
-load(here("data", "model-generated", "2024-02-16_linear-nc002-lod-25.RData"))
-load(here("data", "model-generated", "2024-02-16_linear-nc006-lod-42.RData"))
-load(here("data", "model-generated", "2024-02-16_linear-nc006-lod-30.RData"))
-load(here("data", "model-generated", "2024-02-16_linear-nc006-lod-25.RData"))
-load(here("data", "model-generated", "2024-02-16_linear-s29-lod-42.RData"))
-load(here("data", "model-generated", "2024-02-16_linear-s29-lod-30.RData"))
-load(here("data", "model-generated", "2024-02-16_linear-s29-lod-25.RData"))
-load(here("data", "model-generated", "2024-02-16_linear-s29x-lod-42.RData"))
-load(here("data", "model-generated", "2024-02-16_linear-s29x-lod-30.RData"))
-load(here("data", "model-generated", "2024-02-16_linear-s29x-lod-25.RData"))
+load(here("data", "model-generated", "2024-03-27_linear-nc002-lod-42.RData"))
+load(here("data", "model-generated", "2024-03-27_linear-nc002-lod-30.RData"))
+load(here("data", "model-generated", "2024-03-27_linear-nc002-lod-25.RData"))
+load(here("data", "model-generated", "2024-03-27_linear-nc005-lod-42.RData"))
+load(here("data", "model-generated", "2024-03-27_linear-nc005-lod-30.RData"))
+load(here("data", "model-generated", "2024-03-27_linear-nc005-lod-25.RData"))
+load(here("data", "model-generated", "2024-04-15_linear-nc006-lod-42.RData"))
+load(here("data", "model-generated", "2024-04-15_linear-nc006-lod-30.RData"))
+load(here("data", "model-generated", "2024-04-15_linear-nc006-lod-25.RData"))
+load(here("data", "model-generated", "2024-03-27_linear-s29-lod-42.RData"))
+load(here("data", "model-generated", "2024-03-27_linear-s29-lod-30.RData"))
+load(here("data", "model-generated", "2024-03-27_linear-s29-lod-25.RData"))
+load(here("data", "model-generated", "2024-03-27_linear-s29x-lod-42.RData"))
+load(here("data", "model-generated", "2024-03-27_linear-s29x-lod-30.RData"))
+load(here("data", "model-generated", "2024-03-27_linear-s29x-lod-25.RData"))
 ```
 
 ## MAMS-TB: Linear (treatment level)
@@ -1491,6 +1629,63 @@ coefs_nc002 %>%
              end_row = 9)
 ```
 
+## NC-005 (MPaZB)
+
+```{r}
+coef_nc005_25 <-
+    coef(m_linear_nc005_25, summary = F)$ACTARM %>% 
+    as_tibble()
+
+t25 <- coef_nc005_25 %>% 
+  gather() %>% 
+  group_by(key) %>% 
+  mode_hdi(value) %>% 
+  mutate_if(is.double, round, digits = 3) %>% 
+  mutate(LOQ = 25)
+
+coef_nc005_30 <-
+    coef(m_linear_nc005_30, summary = F)$ACTARM %>% 
+    as_tibble()
+
+t30 <- coef_nc005_30 %>% 
+  gather() %>% 
+  group_by(key) %>% 
+  mode_hdi(value) %>% 
+  mutate_if(is.double, round, digits = 3) %>% 
+  mutate(LOQ = 30)
+
+coef_nc005_42 <-
+    coef(m_linear_nc005_42, summary = F)$ACTARM %>% 
+    as_tibble()
+
+coefs_nc005 <- coef_nc005_42 %>% 
+  gather() %>% 
+  group_by(key) %>% 
+  mode_hdi(value) %>% 
+  mutate_if(is.double, round, digits = 3) %>% 
+  mutate(LOQ = 42) %>% 
+  bind_rows(t30) %>% 
+  bind_rows(t25) %>% 
+  filter(str_detect(key, "weeks")) 
+
+coefs_nc005 %>% 
+  transmute(key, value, .lower, .upper, `CI width` = abs(.upper - .lower), .point, .interval) %>% 
+  rename(" " = key, "Estimate" = value, "CI.l" = .lower, "CI.u" = .upper, #"CI width" = .width,
+         "Point Estimation" = .point, "CI Estimation" = .interval) %>% 
+  kable(digits = 3,
+        caption = "(NC-005 STAND) Posterior group-level estimates of slope from the 25-, 30- and 42-day models (95% Credible Intervals).") %>% 
+  kable_styling(font_size = 16) %>% 
+  pack_rows(group_label = "LOQ = 42",
+             start_row = 1,
+             end_row = 3) %>%
+  pack_rows(group_label = "LOQ = 30",
+             start_row = 4,
+             end_row = 6) %>%
+  pack_rows(group_label = "LOQ = 25",
+             start_row = 7,
+             end_row = 9)
+```
+
 ## NC-006 (STAND)
 
 ```{r}
@@ -1539,13 +1734,13 @@ coefs_nc006 %>%
   kable_styling(font_size = 16) %>% 
   pack_rows(group_label = "LOQ = 42", 
              start_row = 1,
-             end_row = 3) %>% 
+             end_row = 4) %>% 
   pack_rows(group_label = "LOQ = 30",
-             start_row = 4,
-             end_row = 6) %>% 
+             start_row = 5,
+             end_row = 8) %>% 
   pack_rows(group_label = "LOQ = 25",
-             start_row = 7,
-             end_row = 9)
+             start_row = 9,
+             end_row = 12)
 ```
 
 ## Study 29
@@ -1665,18 +1860,71 @@ coefs_s29x %>%
 ## Forest plot
 
 ```{r}
+# Cleaning
+coefs_mams <- coefs_mams %>% 
+  # Simplifying treatment names to match manuscript
+  mutate(treat_simple = case_when(str_detect(key, "20ZM") ~ "HR(20)ZM",
+                                  str_detect(key, "20ZQ") ~ "HR(20)ZQ",
+                                  str_detect(key, "35ZE") ~ "HR(35)ZE",
+                                  TRUE ~ key)) %>% 
+  mutate(treat_simple = factor(treat_simple, levels = c("HRZE", "HRZQ", "HR(20)ZM", "HR(20)ZQ", "HR(35)ZE")))
+
+coefs_remox <- coefs_remox %>% 
+  # Simplifying treatment names to match manuscript
+  mutate(treat_simple = case_when(str_detect(key, "EHRZ") ~ "HRZE",
+                                  str_detect(key, "MHRZ") ~ "MHRZ",
+                                  TRUE ~ "EMRZ")) %>% 
+  mutate(treat_simple = factor(treat_simple, levels = c("HRZE", "MHRZ", "EMRZ")))
+
+
+coefs_nc002 <- coefs_nc002 %>% 
+  # Simplifying treatment names to match manuscript
+  mutate(treat_simple = case_when(str_detect(key, "RIFAFOUR") ~ "HRZE",
+                                  str_detect(key, "100 MG") ~ "MPa(100)Z",
+                                  TRUE ~ "MPa(200)Z")) %>% 
+  mutate(treat_simple = factor(treat_simple, levels = c("HRZE", "MPa(100)Z", "MPa(200)Z")))
+
+coefs_nc005 <- coefs_nc005 %>% 
+  mutate(treat_simple = str_remove(key, "DS: "))
+
+coefs_nc006 <- coefs_nc006 %>% 
+  # Simplifying treatment names to match manuscript
+  mutate(treat_simple = case_when(str_detect(key, "HRZE") ~ "HRZE",
+                                  str_detect(key, "100") ~ "MPa(100)Z",
+                                  str_detect(key, "MPa(200)Z daily for 4 months") ~ "MPa(200)Z (17w)",
+                                  TRUE ~ "MPa(200)Z (26w)")) %>% 
+  mutate(treat_simple = factor(treat_simple, levels = c("HRZE", "MPa(100)Z", "MPa(200)Z (17w)", "MPa(200)Z (26w)")))
+
+coefs_s29 <- coefs_s29 %>%
+  # Removing the few that weren't treated
+  filter(key != "Not Treated") %>% 
+  # Simplifying treatment names to match manuscript
+  mutate(treat_simple = case_when(str_detect(key, "RIFAMPIN") ~ "HRZE",
+                                  TRUE ~ "P(10)RZE")) %>% 
+  mutate(treat_simple = factor(treat_simple, levels = c("HRZE", "P(10)RZE")))
+
+coefs_s29x <- coefs_s29x %>% 
+  # Simplifying treatment names to match manuscript
+  mutate(treat_simple = case_when(str_detect(key, "RIF") ~ "HRZE",
+                                  str_detect(key, "10") ~ "P(10)RZE",
+                                  str_detect(key, "15") ~ "P(15)RZE",
+                                  TRUE ~ "P(20)RZE")) %>% 
+  mutate(treat_simple = factor(treat_simple, levels = c("HRZE", "P(10)RZE", "P(15)RZE", "P(20)RZE")))
+
 bind_rows(mutate(coefs_mams, Data = "MAMS-TB"), 
           mutate(coefs_remox, Data = "REMoxTB"),
-          mutate(coefs_nc002, Data = "NC-002 (M-Pa-Z)"),
+          mutate(coefs_nc002, Data = "NC-002 (MPaZ)"),
+          mutate(coefs_nc005, Data = "NC-005 (MPaZB)"),
           mutate(coefs_nc006, Data = "NC-006 (STAND)"),
           mutate(coefs_s29, Data = "Study 29"),
           mutate(coefs_s29x, Data = "Study 29X")) %>% 
-  mutate(key = str_remove(key, pattern = ".weeks")) %>% 
-  mutate(key = str_remove(key, pattern = c("1. "))) %>%
-  mutate(key = str_remove(key, pattern = c("2. "))) %>%
-  mutate(key = str_remove(key, pattern = c("3. "))) %>%
-  mutate(`Censoring limit` = paste0(LOQ, " days")) %>% 
-  ggplot(aes(x = value, y = key, col = `Censoring limit`, shape = `Censoring limit`)) + 
+  filter(!is.na(treat_simple))  %>% 
+  mutate(treat_simple = str_remove(treat_simple, pattern = ".weeks")) %>%
+  # mutate(key = str_remove(key, pattern = c("1. "))) %>%
+  # mutate(key = str_remove(key, pattern = c("2. "))) %>%
+  # mutate(key = str_remove(key, pattern = c("3. "))) %>%
+  mutate(`ULOQ` = paste0(LOQ, " days")) %>% 
+  ggplot(aes(x = value, y = treat_simple, col = `ULOQ`, shape = `ULOQ`)) + 
   facet_grid(rows = vars(Data), scales = "free_y", space = "free_y") + 
   geom_errorbarh(aes(xmin = .lower, xmax = .upper),
                  position = position_dodge(width = 0.35),
@@ -1686,9 +1934,11 @@ bind_rows(mutate(coefs_mams, Data = "MAMS-TB"),
   scale_color_manual(values = ucsf_col_pal[c(2,4,8)]) + 
   scale_x_continuous(breaks = seq(0.06,0.16,by = 0.02),
                      labels = seq(0.06,0.16,by = 0.02)) + 
-  coord_cartesian(xlim = c(0.06,0.16)) + 
+  coord_cartesian(xlim = c(0.06,0.17)) + 
   theme(axis.title.y = element_blank(),
-        legend.position = c(0.85,0.15)) + 
+        legend.position = c(0.1,0.925),
+        legend.background = element_blank(),
+        legend.box.background = element_rect(colour = "darkgray")) + 
   labs(x = "Estimate (95% Credible Interval)")
 ```
 
@@ -1697,8 +1947,8 @@ bind_rows(mutate(coefs_mams, Data = "MAMS-TB"),
 ggsave(filename = here("graphs", "publication", "forest-plot.tiff"),
        device = "tiff",
        units = "in",
-       height = 4.5,
-       width = 9)
+       height = 11,
+       width = 8.5)
 ```
 
 ## Linear changes in estimates {.scrollable}
@@ -1720,8 +1970,8 @@ coefs_remox %>%
   # mutate(LOQ = c(rep(42, 3), rep(30,3), rep(25,3))) %>% 
   mutate(CI.width = abs(.upper - .lower)) %>% 
   group_by(key) %>% 
-  summarise(point.estimate.ratio = value[LOQ == 30]/value[LOQ == 42],
-            CI.width.ratio = CI.width[LOQ == 30]/CI.width[LOQ == 42]) %>% 
+  summarise(point.estimate.ratio = value[LOQ == 25]/value[LOQ == 42],
+            CI.width.ratio = CI.width[LOQ == 25]/CI.width[LOQ == 42]) %>% 
   kable(digits = 4,
         caption = "(REMoxTB) Change in point estimate and confidence interval width (30 days / 42 days).") %>% 
   kable_styling(font_size = 20)
@@ -1730,18 +1980,28 @@ coefs_nc002 %>%
   # mutate(LOQ = c(rep(42, 3), rep(30,3), rep(25,3))) %>% 
   mutate(CI.width = abs(.upper - .lower)) %>% 
   group_by(key) %>% 
-  summarise(point.estimate.ratio = value[LOQ == 30]/value[LOQ == 42],
-            CI.width.ratio = CI.width[LOQ == 30]/CI.width[LOQ == 42]) %>% 
+  summarise(point.estimate.ratio = value[LOQ == 25]/value[LOQ == 42],
+            CI.width.ratio = CI.width[LOQ == 25]/CI.width[LOQ == 42]) %>% 
   kable(digits = 4,
         caption = "(NC-002 M-Pa-Z) Change in point estimate and confidence interval width (30 days / 42 days).") %>% 
+  kable_styling(font_size = 20)
+
+coefs_nc005 %>% 
+  # mutate(LOQ = c(rep(42, 3), rep(30,3), rep(25,3))) %>% 
+  mutate(CI.width = abs(.upper - .lower)) %>% 
+  group_by(key) %>% 
+  summarise(point.estimate.ratio = value[LOQ == 25]/value[LOQ == 42],
+            CI.width.ratio = CI.width[LOQ == 25]/CI.width[LOQ == 42]) %>% 
+  kable(digits = 4,
+        caption = "(NC-005 MPaZB) Change in point estimate and confidence interval width (30 days / 42 days).") %>% 
   kable_styling(font_size = 20)
 
 coefs_nc006 %>% 
   # mutate(LOQ = c(rep(42, 3), rep(30,3), rep(25,3))) %>% 
   mutate(CI.width = abs(.upper - .lower)) %>% 
   group_by(key) %>% 
-  summarise(point.estimate.ratio = value[LOQ == 30]/value[LOQ == 42],
-            CI.width.ratio = CI.width[LOQ == 30]/CI.width[LOQ == 42]) %>% 
+  summarise(point.estimate.ratio = value[LOQ == 25]/value[LOQ == 42],
+            CI.width.ratio = CI.width[LOQ == 25]/CI.width[LOQ == 42]) %>% 
   kable(digits = 4,
         caption = "(NC-006 STAND) Change in point estimate and confidence interval width (30 days / 42 days).") %>% 
   kable_styling(font_size = 20)
@@ -1750,8 +2010,8 @@ coefs_s29 %>%
   # mutate(LOQ = c(rep(42, 3), rep(30,3), rep(25,3))) %>% 
   mutate(CI.width = abs(.upper - .lower)) %>% 
   group_by(key) %>% 
-  summarise(point.estimate.ratio = value[LOQ == 30]/value[LOQ == 42],
-            CI.width.ratio = CI.width[LOQ == 30]/CI.width[LOQ == 42]) %>% 
+  summarise(point.estimate.ratio = value[LOQ == 25]/value[LOQ == 42],
+            CI.width.ratio = CI.width[LOQ == 25]/CI.width[LOQ == 42]) %>% 
   kable(digits = 4,
         caption = "(Study 29) Change in point estimate and confidence interval width (30 days / 42 days).") %>% 
   kable_styling(font_size = 20)
@@ -1760,18 +2020,18 @@ coefs_s29x %>%
   # mutate(LOQ = c(rep(42, 3), rep(30,3), rep(25,3))) %>% 
   mutate(CI.width = abs(.upper - .lower)) %>% 
   group_by(key) %>% 
-  summarise(point.estimate.ratio = value[LOQ == 30]/value[LOQ == 42],
-            CI.width.ratio = CI.width[LOQ == 30]/CI.width[LOQ == 42]) %>% 
+  summarise(point.estimate.ratio = value[LOQ == 25]/value[LOQ == 42],
+            CI.width.ratio = CI.width[LOQ == 25]/CI.width[LOQ == 42]) %>% 
   kable(digits = 4,
-        caption = "(Study 29) Change in point estimate and confidence interval width (30 days / 42 days).") %>% 
+        caption = "(Study 29x) Change in point estimate and confidence interval width (30 days / 42 days).") %>% 
   kable_styling(font_size = 20)
 ```
 
 ## MAMS-TB: Biphasic (treatment level)
 
 ```{r}
-load(here("data", "model-generated", "2023-08-02_biphasic-mams-lod-30.RData"))
-load(here("data", "model-generated", "2023-08-02_biphasic-mams-lod-42.RData"))
+load(here("data", "model-generated", "superceded", "2023-08-02_biphasic-mams-lod-30.RData"))
+load(here("data", "model-generated", "superceded", "2023-08-02_biphasic-mams-lod-42.RData"))
 ```
 
 ```{r}
@@ -1821,8 +2081,8 @@ coefs_mams_nl %>%
 ## REMoxTB: Biphasic (treatment level)
 
 ```{r}
-load(here("data", "model-generated", "2023-08-04_biphasic-remox-lod-30.RData"))
-load(here("data", "model-generated", "2023-08-03_biphasic-remox-lod-42.RData"))
+load(here("data", "model-generated", "superceded", "2023-08-04_biphasic-remox-lod-30.RData"))
+load(here("data", "model-generated", "superceded", "2023-08-03_biphasic-remox-lod-42.RData"))
 ```
 
 ```{r}
@@ -1983,9 +2243,9 @@ df_25r <- relative_function_remox(m_linear_remox_25, loq = 25)
 df_42nc002 <- relative_function_nc002(m_linear_nc002_42, loq = 42)
 df_30nc002 <- relative_function_nc002(m_linear_nc002_30, loq = 30)
 df_25nc002 <- relative_function_nc002(m_linear_nc002_25, loq = 25)
-df_42nc006 <- relative_function_nc006(m_linear_nc006_42, loq = 42)
-df_30nc006 <- relative_function_nc006(m_linear_nc006_30, loq = 30)
-df_25nc006 <- relative_function_nc006(m_linear_nc006_25, loq = 25)
+# df_42nc006 <- relative_function_nc006(m_linear_nc006_42, loq = 42)
+# df_30nc006 <- relative_function_nc006(m_linear_nc006_30, loq = 30)
+# df_25nc006 <- relative_function_nc006(m_linear_nc006_25, loq = 25)
 ```
 
 ## MAMS
@@ -1993,7 +2253,14 @@ df_25nc006 <- relative_function_nc006(m_linear_nc006_25, loq = 25)
 ```{r}
 mams_differentiation <- bind_rows(mutate(df_42m$output, LOQ = "42 days"),
                                   mutate(df_30m$output, LOQ = "30 days"),
-                                  mutate(df_25m$output, LOQ = "25 days")) 
+                                  mutate(df_25m$output, LOQ = "25 days")) %>% 
+   # Simplifying treatment names to match manuscript
+  mutate(treat_simple = case_when(str_detect(regimen, "20ZM") ~ "HR(20)ZM",
+                                  str_detect(regimen, "20ZQ") ~ "HR(20)ZQ",
+                                  str_detect(regimen, "35ZE") ~ "HR(35)ZE",
+                                  TRUE ~ regimen)) %>% 
+  mutate(treat_simple = factor(treat_simple, levels = c("HRZE", "HRZQ", "HR(20)ZM", "HR(20)ZQ", "HR(35)ZE")))
+
 p_mams_diff <- mams_differentiation %>% 
   pivot_wider(names_from = LOQ, 
               values_from = posterior.prob) %>% 
@@ -2011,6 +2278,8 @@ p_mams_diff <- mams_differentiation %>%
        color = "ULOQ")+ 
   scale_color_manual(values = c(ucsf_col_pal[c(9,2)],"darkgray")) + 
   theme(legend.position = "bottom")
+
+p_mams_diff
 ```
 
 ```{r}
@@ -2051,7 +2320,12 @@ For the MAMS-TB data, using a 30-day limit of quantification improves the abilit
 ```{r}
 remox_differentiation <- bind_rows(mutate(df_42r$output, LOQ = "42 days"),
                                    mutate(df_30r$output, LOQ = "30 days"),
-                                   mutate(df_25r$output, LOQ = "25 days")) 
+                                   mutate(df_25r$output, LOQ = "25 days")) %>% 
+  # Simplifying treatment names to match manuscript
+  mutate(treat_simple = case_when(str_detect(regimen, "EHRZ") ~ "HRZE",
+                                  str_detect(regimen, "MHRZ") ~ "MHRZ",
+                                  TRUE ~ "EMRZ")) %>% 
+  mutate(treat_simple = factor(treat_simple, levels = c("HRZE", "MHRZ", "EMRZ")))
 
 remox_differentiation %>% 
    # pivot_wider(names_from = LOQ, 
@@ -2172,10 +2446,7 @@ ggsave(filename = here("graphs", "publication", "MAMS_REMOX-differentiation-regi
        width = 14)
 ```
 
-
 ## Takeaway
-
-The same trend as was observed in MAMS is not observed in the REMoxTB data, which is perplexing. The 42-day limit of quantification is observed to correlate with a stronger posterior probability of differentiation between the novel regimens and the control (HRZE).
 
 Should we be doing more of a grid-search or can we motivate this better with a S-N exploration first?
 
@@ -2244,7 +2515,7 @@ ggsave(filename = here("graphs", "publication",
 # Signal-to-Noise
 
 ```{r}
-load(here("data", "cleaned-data", "2023-12-14_replicate-datasets.RData"))
+load(here("data", "cleaned-data", "2024-03-26_replicate-datasets.RData"))
 list2env(df_replicates, environment())
 ```
 
@@ -2534,8 +2805,9 @@ p2 <- prediction_nc %>%
   group_by(cats_rep1 = cut(rep1, breaks = quantile(rep1, probs = seq(0,1,by=0.05)))) %>% 
   mutate(mean_cat_error_20 = mean(pred.error)) %>% 
   ggplot(aes(x = rep1, y = over.lim.pred.error)) + 
-  geom_point(alpha = 0.2,
-             aes(shape = over.lim.detect,
+  geom_point(#alpha = 0.2,
+             aes(alpha = over.lim.detect,
+                 shape = over.lim.detect,
                  col = over.lim.detect))+#,
              # col = ucsf_col_pal[3]) +
   geom_smooth(aes(y = pred.error),
@@ -2548,6 +2820,7 @@ p2 <- prediction_nc %>%
             lwd = 1) +
   # coord_cartesian(xlim = c(1,120),ylim = c(0,100)) +
   coord_cartesian(xlim = c(1,42),ylim = c(0,100)) +
+  scale_alpha_manual(values = c(0.2,1)) +
   scale_x_log10(breaks = c(1,3, 10, 25, 30, 42)) +
   scale_y_continuous(breaks = c(seq(0,100,by = 10), 150,200),
                      expand = c(0,0.75)) +
@@ -2953,37 +3226,61 @@ m_linear_mams_25
 
 ```{r}
 #| eval: false
-s1 <- summary(m_linear_mams_25, priors = TRUE)
-s2 <- summary(m_linear_mams_30)
-s3 <- summary(m_linear_mams_42)
-bind_rows(s1$fixed, 
-          s1$spec_pars,
-          s2$fixed, 
-          s2$spec_pars,
-          s3$fixed, 
-          s3$spec_pars) %>% 
-  rownames_to_column("Coefficient") %>% 
-  mutate(`95% HCI` = )
-  mutate(Coefficient = case_when(str_detect(pattern = "Intercept", string = Coefficient) ~ "$\\gamma_0$",
-                                 str_detect(pattern = "weeks", string = Coefficient) ~ "$\\gamma_1$",
-                                 TRUE ~ "$\\sigma_1$")) %>% 
-  kable(digits = c(2,2,2,2,2,3,1,1),
-        format = "latex",
-        booktabs = TRUE,
-        escape = FALSE,
-        caption = "MAMS-TB model results.") %>% 
-  kable_styling() %>% 
-  group_rows("ULOQ$_M$ = 25",
-             start_row = 1,
-             end_row = 3) %>% 
-  group_rows("ULOQ$_M$ = 30",
-             start_row = 4,
+mod_sum_function <- function(output1, output2, output3, caption = "MAMS-TB model results."){
+  s1 <- summary(output1, priors = TRUE)
+  s2 <- summary(output2)
+  s3 <- summary(output3)
+  
+  output <- bind_rows(s1$fixed, 
+                      s1$spec_pars,
+                      s2$fixed, 
+                      s2$spec_pars,
+                      s3$fixed, 
+                      s3$spec_pars) %>% 
+    rownames_to_column("Coefficient") %>% 
+    mutate(`95% HCI` = paste0("(",format(round(`l-95% CI`, 2),nsmall = 2), ",", format(round(`u-95% CI`, 2),nsmall=2),")")) %>% 
+    mutate(Coefficient = case_when(str_detect(pattern = "Intercept", string = Coefficient) ~ "$\\gamma_0$",
+                                   str_detect(pattern = "weeks", string = Coefficient) ~ "$\\gamma_1$",
+                                   TRUE ~ "$\\sigma_1$")) %>% 
+    dplyr::select(Coefficient, Estimate, Est.Error, `95% HCI`, Rhat, Bulk_ESS, Tail_ESS) %>% 
+    kable(digits = c(2,2,2,2,3,1,1),
+          align = c("l","r","r","r","r","r","r"),
+          format = "latex",
+          booktabs = TRUE,
+          escape = FALSE,
+          caption = caption) %>% 
+    kable_styling() %>% 
+    group_rows("ULOQ$_M$ = 25",
+               start_row = 1,
+               end_row = 3) %>% 
+    group_rows("ULOQ$_M$ = 30",
+               start_row = 4,
              end_row = 6) %>% 
   group_rows("ULOQ$_M$ = 42",
              start_row = 7,
              end_row = 9) 
+  return(output)}
 
+mod_sum_function(m_linear_remox_25, m_linear_remox_30, m_linear_remox_42, caption = "REMoxTB model results.")
+mod_sum_function(m_linear_mams_25, m_linear_mams_30, m_linear_mams_42)
+mod_sum_function(m_linear_nc002_25, m_linear_nc002_30, m_linear_nc002_42, caption = "NC-002 (MPaZ) model results.")
 
+mod_sum_function(m_linear_nc005_25, 
+                 m_linear_nc005_30, 
+                 m_linear_nc005_42, 
+                 caption = "NC-005 (MPaZB) model results.")
+mod_sum_function(m_linear_nc006_25, 
+                 m_linear_nc006_30, 
+                 m_linear_nc006_42, 
+                 caption = "NC-006 (STAND) model results.")
+mod_sum_function(m_linear_s29_25, 
+                 m_linear_s29_30, 
+                 m_linear_s29_42, 
+                 caption = "Study 29 model results.")
+mod_sum_function(m_linear_s29x_25, 
+                 m_linear_s29x_30, 
+                 m_linear_s29x_42, 
+                 caption = "Study 29X model results.")
 ```
 
 ## MAMS-TB: Linear 25-day posterior {.scrollable}
@@ -3137,5 +3434,112 @@ m_nonlinear_remox_42
 plot(m_nonlinear_remox_42, ask = FALSE)
 ```
 
+## Group Statistics {.scrollable}
 
-## Group Statistics
+```{r}
+library(bayesplot)
+p1 <- pp_check(m_linear_mams_25) + 
+  labs(subtitle = TeX("ULOQ$_M$ = 25"),
+       title = "MAMS-TB") + 
+  scale_x_continuous(breaks = log10(c(1,5,10,25,42)),
+                                  labels = c(1,5,10,25,42))
+p2 <- pp_check(m_linear_mams_30) + 
+  labs(subtitle = TeX("ULOQ$_M$ = 30")) + 
+  scale_x_continuous(breaks = log10(c(1,5,10,25,42)),
+                     labels = c(1,5,10,25,42))
+p3 <- pp_check(m_linear_mams_42) + 
+  labs(subtitle = TeX("ULOQ$_M$ = 42")) + 
+  scale_x_continuous(breaks = log10(c(1,5,10,25,42)),
+                     labels = c(1,5,10,25,42))
+
+p1r <- pp_check(m_linear_remox_25) + 
+  labs(subtitle = TeX("ULOQ$_M$ = 25"),
+       title = "REMoxTB") + 
+  scale_x_continuous(breaks = log10(c(1,5,10,25,42)),
+                     labels = c(1,5,10,25,42))
+p2r <- pp_check(m_linear_remox_30) + 
+  labs(subtitle = TeX("ULOQ$_M$ = 30")) + 
+  scale_x_continuous(breaks = log10(c(1,5,10,25,42)),
+                     labels = c(1,5,10,25,42))
+p3r <- pp_check(m_linear_remox_42) + 
+  labs(subtitle = TeX("ULOQ$_M$ = 42")) + 
+  scale_x_continuous(breaks = log10(c(1,5,10,25,42)),
+                     labels = c(1,5,10,25,42))
+
+p1nc002 <- pp_check(m_linear_nc002_25) + 
+  labs(subtitle = TeX("ULOQ$_M$ = 25"),
+       title = "NC-002 (MPaZ)") + 
+  scale_x_continuous(breaks = log10(c(1,5,10,25,42)),
+                     labels = c(1,5,10,25,42))
+p2nc002 <- pp_check(m_linear_nc002_30) + 
+  labs(subtitle = TeX("ULOQ$_M$ = 30")) + 
+  scale_x_continuous(breaks = log10(c(1,5,10,25,42)),
+                     labels = c(1,5,10,25,42))
+p3nc002 <- pp_check(m_linear_nc002_42) + 
+  labs(subtitle = TeX("ULOQ$_M$ = 42")) + 
+  scale_x_continuous(breaks = log10(c(1,5,10,25,42)),
+                     labels = c(1,5,10,25,42))
+
+p1nc006 <- pp_check(m_linear_nc006_25) + 
+  labs(subtitle = TeX("ULOQ$_M$ = 25"),
+       title = "NC-006 (MPaZB)") + 
+  scale_x_continuous(breaks = log10(c(1,5,10,25,42)),
+                     labels = c(1,5,10,25,42))
+p2nc006 <- pp_check(m_linear_nc006_30) + 
+  labs(subtitle = TeX("ULOQ$_M$ = 30")) + 
+  scale_x_continuous(breaks = log10(c(1,5,10,25,42)),
+                     labels = c(1,5,10,25,42))
+p3nc006 <- pp_check(m_linear_nc006_42) + 
+  labs(subtitle = TeX("ULOQ$_M$ = 42")) + 
+  scale_x_continuous(breaks = log10(c(1,5,10,25,42)),
+                     labels = c(1,5,10,25,42))
+
+p1s29 <- pp_check(m_linear_s29_25) + 
+  labs(subtitle = TeX("ULOQ$_M$ = 25"),
+       title = "Study 29") + 
+  scale_x_continuous(breaks = log10(c(1,5,10,25,42)),
+                     labels = c(1,5,10,25,42))
+p2s29 <- pp_check(m_linear_s29_30) + 
+  labs(subtitle = TeX("ULOQ$_M$ = 30")) + 
+  scale_x_continuous(breaks = log10(c(1,5,10,25,42)),
+                     labels = c(1,5,10,25,42))
+p3s29 <- pp_check(m_linear_s29_42) + 
+  labs(subtitle = TeX("ULOQ$_M$ = 42")) + 
+  scale_x_continuous(breaks = log10(c(1,5,10,25,42)),
+                     labels = c(1,5,10,25,42))
+
+p1s29x <- pp_check(m_linear_s29x_25) + 
+  labs(subtitle = TeX("ULOQ$_M$ = 25"),
+       title = "Study 29X") + 
+  scale_x_continuous(breaks = log10(c(1,5,10,25,42)),
+                     labels = c(1,5,10,25,42))
+p2s29x <- pp_check(m_linear_s29x_30) + 
+  labs(subtitle = TeX("ULOQ$_M$ = 30")) + 
+  scale_x_continuous(breaks = log10(c(1,5,10,25,42)),
+                     labels = c(1,5,10,25,42))
+p3s29x <- pp_check(m_linear_s29x_42) + 
+  labs(subtitle = TeX("ULOQ$_M$ = 42")) + 
+  scale_x_continuous(breaks = log10(c(1,5,10,25,42)),
+                     labels = c(1,5,10,25,42))
+
+p_mams <- (p1 + p2 + p3) 
+p_remox <- (p1r + p2r + p3r)
+p_nc002 <- (p1nc002 + p2nc002 + p3nc002)
+p_nc006 <- (p1nc006 + p2nc006 + p3nc006)
+p_s29 <- (p1s29 + p2s29 + p3s29)
+p_s29x <- (p1s29x + p2s29x + p3s29x)
+
+p_mams / p_remox / p_nc002 / p_nc006 / p_s29 /p_s29x + 
+  plot_annotation(caption = "Note: Responses above the ULOQ are not shown.") +
+  plot_layout(guides = "collect") &
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| eval: false
+ggsave(here("graphs","descriptive", "supplemental_posterior-predictive-checking.png"),
+       device = "png",
+       height = 10,
+       width = 8,
+       units = "in")
+```

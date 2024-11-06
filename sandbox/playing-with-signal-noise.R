@@ -1,3 +1,9 @@
+library(tidyverse)
+library(latex2exp)
+library(here)
+source(here("data", "cleaned-data", "2023-08-15_remoxtb-clean.RData"))
+theme_set(ggpubr::theme_pubr())
+
 df_replicates <- df_analysis_remox %>% 
   group_by(trial_no, weeks) %>% 
   mutate(replicate = row_number()) %>% 
