@@ -1,0 +1,24 @@
+---
+title: "TTP LOQ Paper, As Told in Figures"
+author: "Suzanne Dufault"
+format: 
+  revealjs:
+    self-contained: true
+    self-contained-math: true
+    scrollable: true
+    smaller: true
+editor: source
+execute:
+  echo: false
+  message: false
+  warning: false
+editor_options: 
+  chunk_output_type: console
+---
+
+## Figure 1. Observed time-to-positivity trajectories
+
+![Observed time-to-positivity trajectories in REMoxTB. Any observations at or above the diagnostic limit of detection (42 days) are recorded as 42 days. A: Regimen-level trends in TTP (lines) and estimated standard errors (ribbons) as fit by smoothing splines. B: Individual TTP trajectories (light gray) and regimen-level smoothing spline (black).](../graphs/descriptive/01_trajectories-remox-tb.png){width="80%" fig-align="right"}
+
+## Figure 2.
+
