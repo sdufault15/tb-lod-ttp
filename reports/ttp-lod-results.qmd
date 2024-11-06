@@ -101,7 +101,7 @@ df_analysis_s29x <- df_analysis_s29x %>%
 -   BACTEC MGIT machine is the standard approach globally for detecting viable bacilli in a patient's sputum.
     -   Measures the decline of oxygen in a liquid culture tube inoculated with the sputum sample.
     -   Introduced during a major diagnostic development push at the end of the 1980s/early 1990s.
--   Samples observed no longer than 42 days, at which point the sample is declared \`\`negative'' for TB with no evidence for bacterial growth.
+-   Samples observed no longer than 42 days, at which point the sample is declared "negative" for TB with no evidence for bacterial growth.
 
 ::: notes
 I think the historical impact of the development of the BACTEC MGIT machine is super interesting!
@@ -180,6 +180,15 @@ df_analysis_mams %>%
 ## TB-PACTS NC-002 M-Pa-Z
 
 ```{r}
+<<<<<<< HEAD
+#load("~/Documents/ucsf-research-git/tb-pacts-general/generated-datasets/2023-10-31_tb-pacts-data-with-ttp-measures.RData")
+# Just for laptop
+load(here("..","tb-pacts-general","generated-datasets","2023-10-31_tb-pacts-data-with-ttp-measures.RData"))
+list2env(tb_pacts, envir = environment())
+```
+
+## TB-PACTS NC-005 M-Pa-Z-B
+=======
 df_analysis_nc002 %>% 
   group_by(ACTARM) %>% 
   summarise(n = n_distinct(USUBJID)) %>% 
@@ -200,6 +209,7 @@ df_analysis_nc005 %>%
   kable() %>% 
   kable_styling()
 ```
+>>>>>>> bdcf8b491528a3737b5bcde124f0643adc491514
 
 ## TB-PACTS NC-006 (STAND)
 
@@ -2440,7 +2450,13 @@ ggsave(filename = here("graphs", "publication", "MAMS_REMOX-differentiation-regi
 
 Should we be doing more of a grid-search or can we motivate this better with a S-N exploration first?
 
+<<<<<<< HEAD
+# Signal-to-Noise
+
+## Replicates (NC-002) {.scrollable}
+=======
 ## NC-002 (M-Pa-Z)
+>>>>>>> bdcf8b491528a3737b5bcde124f0643adc491514
 
 ```{r}
 nc002_differentiation <- bind_rows(mutate(df_42nc002$output, LOQ = "42 days"),
