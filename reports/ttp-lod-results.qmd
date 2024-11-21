@@ -101,7 +101,7 @@ df_analysis_s29x <- df_analysis_s29x %>%
 -   BACTEC MGIT machine is the standard approach globally for detecting viable bacilli in a patient's sputum.
     -   Measures the decline of oxygen in a liquid culture tube inoculated with the sputum sample.
     -   Introduced during a major diagnostic development push at the end of the 1980s/early 1990s.
--   Samples observed no longer than 42 days, at which point the sample is declared \`\`negative'' for TB with no evidence for bacterial growth.
+-   Samples observed no longer than 42 days, at which point the sample is declared "negative" for TB with no evidence for bacterial growth.
 
 ::: notes
 I think the historical impact of the development of the BACTEC MGIT machine is super interesting!
@@ -132,13 +132,17 @@ Our objective is to examine existing TTP data from various case studies to bette
 -   Study 29x
 
 <!-- THESE DESCRIPTIONS NEED TO BE UPDATED-->
+
 <!-- ## REMoxTB -->
 
 <!-- We will restrict to only those with: -->
 
 <!-- -   `result = 0,1,2` (i.e., only those with a Negative (0), Positive (1), or Unconfirmed Positive (2) result) -->
+
 <!-- -   `bact = 1` (i.e., MGIT) -->
+
 <!-- -   `weeks <= 8` (i.e., only looking at observations within 8 weeks of randomization) -->
+
 <!-- -   `!box_mitt %in% c(10,20,30)` excluding those with late screening failures -->
 
 <!-- ## MAMS -->
@@ -176,6 +180,8 @@ df_analysis_mams %>%
 ## TB-PACTS NC-002 M-Pa-Z
 
 ```{r}
+load("~/Documents/ucsf-research-git/tb-pacts-general/generated-datasets/2023-10-31_tb-pacts-data-with-ttp-measures.RData")
+list2env(tb_pacts, envir = environment())
 df_analysis_nc002 %>% 
   group_by(ACTARM) %>% 
   summarise(n = n_distinct(USUBJID)) %>% 
@@ -196,6 +202,7 @@ df_analysis_nc005 %>%
   kable() %>% 
   kable_styling()
 ```
+>>>>>>> bdcf8b491528a3737b5bcde124f0643adc491514
 
 ## TB-PACTS NC-006 (STAND)
 
@@ -855,7 +862,6 @@ ggsave(file = here("graphs", "descriptive", "01_trajectories-combined.png"),
        units = "in",
        dpi = 300)
 ```
-
 
 ## Data Distribution v. Time
 
@@ -1616,7 +1622,6 @@ coefs_nc002 %>%
              end_row = 9)
 ```
 
-
 ## NC-005 (MPaZB)
 
 ```{r}
@@ -1995,8 +2000,8 @@ coefs_remox %>%
   # mutate(LOQ = c(rep(42, 3), rep(30,3), rep(25,3))) %>% 
   mutate(CI.width = abs(.upper - .lower)) %>% 
   group_by(key) %>% 
-  summarise(point.estimate.ratio = value[LOQ == 30]/value[LOQ == 42],
-            CI.width.ratio = CI.width[LOQ == 30]/CI.width[LOQ == 42]) %>% 
+  summarise(point.estimate.ratio = value[LOQ == 25]/value[LOQ == 42],
+            CI.width.ratio = CI.width[LOQ == 25]/CI.width[LOQ == 42]) %>% 
   kable(digits = 4,
         caption = "(REMoxTB) Change in point estimate and confidence interval width (30 days / 42 days).") %>% 
   kable_styling(font_size = 20)
@@ -2005,18 +2010,28 @@ coefs_nc002 %>%
   # mutate(LOQ = c(rep(42, 3), rep(30,3), rep(25,3))) %>% 
   mutate(CI.width = abs(.upper - .lower)) %>% 
   group_by(key) %>% 
-  summarise(point.estimate.ratio = value[LOQ == 30]/value[LOQ == 42],
-            CI.width.ratio = CI.width[LOQ == 30]/CI.width[LOQ == 42]) %>% 
+  summarise(point.estimate.ratio = value[LOQ == 25]/value[LOQ == 42],
+            CI.width.ratio = CI.width[LOQ == 25]/CI.width[LOQ == 42]) %>% 
   kable(digits = 4,
         caption = "(NC-002 M-Pa-Z) Change in point estimate and confidence interval width (30 days / 42 days).") %>% 
+  kable_styling(font_size = 20)
+
+coefs_nc005 %>% 
+  # mutate(LOQ = c(rep(42, 3), rep(30,3), rep(25,3))) %>% 
+  mutate(CI.width = abs(.upper - .lower)) %>% 
+  group_by(key) %>% 
+  summarise(point.estimate.ratio = value[LOQ == 25]/value[LOQ == 42],
+            CI.width.ratio = CI.width[LOQ == 25]/CI.width[LOQ == 42]) %>% 
+  kable(digits = 4,
+        caption = "(NC-005 MPaZB) Change in point estimate and confidence interval width (30 days / 42 days).") %>% 
   kable_styling(font_size = 20)
 
 coefs_nc006 %>% 
   # mutate(LOQ = c(rep(42, 3), rep(30,3), rep(25,3))) %>% 
   mutate(CI.width = abs(.upper - .lower)) %>% 
   group_by(key) %>% 
-  summarise(point.estimate.ratio = value[LOQ == 30]/value[LOQ == 42],
-            CI.width.ratio = CI.width[LOQ == 30]/CI.width[LOQ == 42]) %>% 
+  summarise(point.estimate.ratio = value[LOQ == 25]/value[LOQ == 42],
+            CI.width.ratio = CI.width[LOQ == 25]/CI.width[LOQ == 42]) %>% 
   kable(digits = 4,
         caption = "(NC-006 STAND) Change in point estimate and confidence interval width (30 days / 42 days).") %>% 
   kable_styling(font_size = 20)
@@ -2025,8 +2040,8 @@ coefs_s29 %>%
   # mutate(LOQ = c(rep(42, 3), rep(30,3), rep(25,3))) %>% 
   mutate(CI.width = abs(.upper - .lower)) %>% 
   group_by(key) %>% 
-  summarise(point.estimate.ratio = value[LOQ == 30]/value[LOQ == 42],
-            CI.width.ratio = CI.width[LOQ == 30]/CI.width[LOQ == 42]) %>% 
+  summarise(point.estimate.ratio = value[LOQ == 25]/value[LOQ == 42],
+            CI.width.ratio = CI.width[LOQ == 25]/CI.width[LOQ == 42]) %>% 
   kable(digits = 4,
         caption = "(Study 29) Change in point estimate and confidence interval width (30 days / 42 days).") %>% 
   kable_styling(font_size = 20)
@@ -2035,10 +2050,10 @@ coefs_s29x %>%
   # mutate(LOQ = c(rep(42, 3), rep(30,3), rep(25,3))) %>% 
   mutate(CI.width = abs(.upper - .lower)) %>% 
   group_by(key) %>% 
-  summarise(point.estimate.ratio = value[LOQ == 30]/value[LOQ == 42],
-            CI.width.ratio = CI.width[LOQ == 30]/CI.width[LOQ == 42]) %>% 
+  summarise(point.estimate.ratio = value[LOQ == 25]/value[LOQ == 42],
+            CI.width.ratio = CI.width[LOQ == 25]/CI.width[LOQ == 42]) %>% 
   kable(digits = 4,
-        caption = "(Study 29) Change in point estimate and confidence interval width (30 days / 42 days).") %>% 
+        caption = "(Study 29x) Change in point estimate and confidence interval width (30 days / 42 days).") %>% 
   kable_styling(font_size = 20)
 ```
 
@@ -2462,12 +2477,13 @@ ggsave(filename = here("graphs", "publication", "MAMS_REMOX-differentiation-regi
        width = 14)
 ```
 
-
 ## Takeaway
 
 Should we be doing more of a grid-search or can we motivate this better with a S-N exploration first?
 
-## NC-002 (M-Pa-Z)
+# Signal-to-Noise
+
+## Replicates (NC-002) {.scrollable}
 
 ```{r}
 nc002_differentiation <- bind_rows(mutate(df_42nc002$output, LOQ = "42 days"),
@@ -2825,7 +2841,7 @@ ggsave(here("graphs", "publication", "posterior-densities_promising-regimens.tif
 We don't want to induce relationships where there are none, so let's examine some regimens that didn't perform better than HRZE.
 
 ```{r}
-## MAMS-TB - NOT SUCCUSSFUL REGIMENS
+## MAMS-TB - NOT SUCCESSFUL REGIMENS
 df_post_mams_25ns <- coef(m_linear_mams_25, summary = F)$Treatm_arm %>% 
   as_tibble()  %>% 
   # Removing the promising regimen
@@ -2900,6 +2916,7 @@ ggsave(here("graphs", "publication", "posterior-densities_mams-negative-regimens
        width = 6,
        units = "in")
 ```
+
 
 # Signal-to-Noise
 
@@ -3856,7 +3873,6 @@ m_nonlinear_remox_42
 ```{r}
 plot(m_nonlinear_remox_42, ask = FALSE)
 ```
-
 
 ## Group Statistics {.scrollable}
 
