@@ -2820,18 +2820,28 @@ t3 <- bind_rows(df_post_nc005_25,
 p1 <- posterior_density_function(df = t1, 
                                  plot_title = "MAMS-TB: R(35)HZE")
 p2a <- posterior_density_function(df = t2_a, 
-                                  plot_title = "NC-002: MPa(100)Z")
+                                  plot_title = "NC-002: Pa(100)MZ")
 p2b <- posterior_density_function(df = t2_b, 
-                                  plot_title = "NC-002: MPa(200)Z")
+                                  plot_title = "NC-002: Pa(200)MZ")
 p3 <- posterior_density_function(df = t3, 
                                   plot_title = "NC-005: B(200)PaZ")
-(p1 + p2a) / (p2b + p3)
+
+
+aa <- (p1 + p2a) 
+bb <- (p2b + p3)
+aa / bb
 ```
 
 ```{r}
 #| eval: false
 ggsave(here("graphs", "publication", "posterior-densities_promising-regimens.tiff"),
        device = "tiff",
+       height = 8,
+       width = 12,
+       units = "in")
+
+ggsave(here("graphs", "publication", "posterior-densities_promising-regimens.png"),
+       device = "png",
        height = 8,
        width = 12,
        units = "in")
