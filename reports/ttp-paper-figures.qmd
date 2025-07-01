@@ -16,9 +16,874 @@ editor_options:
   chunk_output_type: console
 ---
 
+```{r}
+library(tidyverse)
+library(here)
+library(kableExtra)
+library(knitr)
+library(patchwork)
+library(latex2exp)
+library(ggalluvial)
+library(tidybayes)
+
+source(here("lib", "ucsf-color-palette.R"))
+source(here("lib", "relative-function-mams.R")) # used for posterior comparison of regimens v control
+source(here("lib", "relative-function-remox.R")) # used for posterior comparison of regimens v control
+source(here("lib", "relative-function-nc002.R"))
+load(here("data", "cleaned-data", "2024-03-26_remoxtb-clean.RData"))
+load(here("data", "cleaned-data", "2024-03-26_mams-clean.RData"))
+load(here("data", "cleaned-data", "2024-03-26_TBTC-S29-clean.RData"))
+load(here("data", "cleaned-data", "2024-03-26_TBTC-S29x-clean.RData"))
+load(here("data", "cleaned-data", "2024-03-26_NC-002-clean.RData"))
+load(here("data", "cleaned-data", "2024-03-26_NC-005-clean.RData"))
+load(here("data", "cleaned-data", "2024-04-15_NC-006-clean.RData"))
+theme_set(ggpubr::theme_pubr())
+```
+
+```{r}
+# Cleaning regimen names for publication
+df_analysis_mams <- df_analysis_mams %>% 
+  # Simplifying treatment names to match manuscript
+  mutate(treat_simple = case_when(str_detect(Treatm_arm, "20ZM") ~ "HR(20)ZM",
+                                  str_detect(Treatm_arm, "20ZQ") ~ "HR(20)ZQ",
+                                  str_detect(Treatm_arm, "35ZE") ~ "HR(35)ZE",
+                                  TRUE ~ Treatm_arm)) %>% 
+  mutate(treat_simple = factor(treat_simple, levels = c("HRZE", "HRZQ", "HR(20)ZM", "HR(20)ZQ", "HR(35)ZE")))
+
+df_analysis_remox <- df_analysis_remox %>% 
+  # Simplifying treatment names to match manuscript
+  mutate(treat_simple = case_when(str_detect(treat, "EHRZ") ~ "HRZE",
+                                  str_detect(treat, "MHRZ") ~ "MHRZ",
+                                  TRUE ~ "EMRZ")) %>% 
+  mutate(treat_simple = factor(treat_simple, levels = c("HRZE", "MHRZ", "EMRZ")))
+
+
+df_analysis_nc002 <- df_analysis_nc002 %>% 
+  # Simplifying treatment names to match manuscript
+  mutate(treat_simple = case_when(str_detect(ACTARM, "RIFAFOUR") ~ "HRZE",
+                                  str_detect(ACTARM, "100 MG") ~ "MPa(100)Z",
+                                  TRUE ~ "MPa(200)Z")) %>% 
+  mutate(treat_simple = factor(treat_simple, levels = c("HRZE", "MPa(100)Z", "MPa(200)Z")))
+
+df_analysis_nc005 <- df_analysis_nc005 %>% 
+  mutate(treat_simple = str_remove(ACTARM, "DS: "))
+df_analysis_nc006 <- df_analysis_nc006 %>% 
+  # Simplifying treatment names to match manuscript
+  mutate(treat_simple = case_when(str_detect(ACTARM, "HRZE") ~ "HRZE",
+                                  str_detect(ACTARM, "100") ~ "MPa(100)Z",
+                                  str_detect(ACTARM, "MPa(200)Z daily for 4 months") ~ "MPa(200)Z (17w)",
+                                  TRUE ~ "MPa(200)Z (26w)")) %>% 
+  mutate(treat_simple = factor(treat_simple, levels = c("HRZE", "MPa(100)Z", "MPa(200)Z (17w)", "MPa(200)Z (26w)")))
+
+df_analysis_s29 <- df_analysis_s29 %>%
+  # Removing the few that weren't treated
+  filter(ACTARM != "Not Treated") %>% 
+  # Simplifying treatment names to match manuscript
+  mutate(treat_simple = case_when(str_detect(ACTARM, "RIFAMPIN") ~ "HRZE",
+                                  TRUE ~ "P(10)RZE")) %>% 
+  mutate(treat_simple = factor(treat_simple, levels = c("HRZE", "P(10)RZE")))
+
+df_analysis_s29x <- df_analysis_s29x %>%
+  # Removing the few that weren't treated
+  filter(ACTARM != "Not Treated") %>% 
+  # Simplifying treatment names to match manuscript
+  mutate(treat_simple = case_when(str_detect(ACTARM, "RIF") ~ "HRZE",
+                                  str_detect(ACTARM, "10") ~ "P(10)RZE",
+                                  str_detect(ACTARM, "15") ~ "P(15)RZE",
+                                  TRUE ~ "P(20)RZE")) %>% 
+  mutate(treat_simple = factor(treat_simple, levels = c("HRZE", "P(10)RZE", "P(15)RZE", "P(20)RZE")))
+```
+
 ## Figure 1. Observed time-to-positivity trajectories
 
-![Observed time-to-positivity trajectories in REMoxTB. Any observations at or above the diagnostic limit of detection (42 days) are recorded as 42 days. A: Regimen-level trends in TTP (lines) and estimated standard errors (ribbons) as fit by smoothing splines. B: Individual TTP trajectories (light gray) and regimen-level smoothing spline (black).](../graphs/descriptive/01_trajectories-remox-tb.png){width="80%" fig-align="right"}
+```{r}
+#| fig-cap: "Observed TTP trajectories, where anything at or above 42 receives a value of 42."
+p1 <- df_analysis_remox %>% 
+  # Averaging the replicate measures
+  group_by(trial_no, weeks) %>% 
+  mutate(dtp_42_avg = mean(dtp_42)) %>% 
+  ggplot(aes(x = weeks, y = dtp_42, col = treat_simple, lty = treat_simple)) + 
+  # geom_point(alpha = 0.3,
+  #            position = position_jitter(width = 0.1,height = 0)) +
+  geom_smooth(method = lm, 
+              formula = y ~ splines::bs(x, 4)) + 
+  scale_y_log10("TTP in days, log10 scale",
+                breaks = c(5,7,10,15,20,30,42),
+                labels = c(5,7,10,15,20,30,42)) + 
+  scale_x_continuous("Days from randomization", 
+                     breaks = 0:8,
+                     labels = seq(0,56, by = 7)) +
+  coord_cartesian(y = c(5,43))  + 
+  geom_hline(yintercept = 42, 
+             lty = 2) +
+  theme(legend.position = c(0.8,0.2),
+        legend.title = element_blank()) + 
+  scale_color_manual(values = ucsf_col_pal)
 
-## Figure 2.
+p2 <- df_analysis_remox %>% 
+  group_by(trial_no, weeks) %>% 
+  # Averaging the replicate measures
+  mutate(dtp_42_avg = mean(dtp_42)) %>% 
+  ggplot(aes(x = weeks, y = dtp_42_avg, group=trial_no)) + 
+  facet_wrap(~treat_simple, ncol = 1) + 
+  geom_line(alpha = 0.1,
+            col = "darkgray") + 
+  geom_smooth(aes(group = treat,
+                  lty = treat),
+              method = lm, 
+              formula = y ~ splines::bs(x, 4),
+              col = "black",
+              se = FALSE) + 
+  scale_y_log10("TTP in days, log10 scale",
+                breaks = c(5,7,10,15,20,30,42),
+                labels = c(5,7,10,15,20,30,42)) + 
+  scale_x_continuous("Days from randomization", 
+                     breaks = 0:8,
+                     labels = seq(0,56, by = 7)) +
+  coord_cartesian(y = c(5,43)) +
+  geom_hline(yintercept = 42, 
+             lty = 2) + 
+  theme(legend.position = "none")
+
+p1 + p2 + 
+  plot_annotation(tag_levels = "A")
+```
+
+## Categorized TTP by Study
+
+```{r}
+df_analysis_remox %>% 
+  group_by(ttp = cut(dtp_42, breaks = c(0,25,42,45), right = FALSE)) %>% 
+  summarise(n = n()) %>% 
+  mutate(prop = n/sum(n)) %>%
+  kable(digits = 4,
+        caption = "REMoxTB") %>%
+  kable_styling(font_size = 20)
+
+df_analysis_mams %>% 
+  group_by(ttp = cut(dtp_42, breaks = c(0,25,42,45), right = FALSE)) %>% 
+  summarise(n = n()) %>% 
+  mutate(prop = n/sum(n)) %>% 
+  kable(digits = 4,
+        caption = "MAMS-TB") %>%
+  kable_styling(font_size = 20)
+
+df_analysis_nc002 %>% 
+  group_by(ttp = cut(dtp_42, breaks = c(0,25,42,45), right = FALSE)) %>% 
+  summarise(n = n()) %>% 
+  mutate(prop = n/sum(n)) %>% 
+  kable(digits = 4,
+        caption = "NC-002") %>% 
+  kable_styling(font_size = 20)
+
+df_analysis_nc005 %>% 
+  group_by(ttp = cut(dtp_42, breaks = c(0,25,42,45), right = FALSE)) %>% 
+  summarise(n = n()) %>% 
+  mutate(prop = n/sum(n)) %>% 
+  kable(digits = 4,
+        caption = "NC-005") %>% 
+  kable_styling(font_size = 20)
+
+df_analysis_nc006 %>% 
+  group_by(ttp = cut(dtp_42, breaks = c(0,25,42,60), right = FALSE)) %>% 
+  summarise(n = n()) %>% 
+  mutate(prop = n/sum(n)) %>% 
+  kable(digits = 4,
+        caption = "NC-006") %>% 
+  kable_styling(font_size = 20)
+
+df_analysis_s29 %>% 
+  group_by(ttp = cut(dtp_42, breaks = c(0,25,42,60), right = FALSE)) %>% 
+  summarise(n = n()) %>% 
+  mutate(prop = n/sum(n)) %>% 
+  kable(digits = 4,
+        caption = "Study 29") %>% 
+  kable_styling(font_size = 20)
+
+df_analysis_s29x %>% 
+  group_by(ttp = cut(dtp_42, breaks = c(0,25,42,60), right = FALSE)) %>% 
+  summarise(n = n()) %>% 
+  mutate(prop = n/sum(n)) %>% 
+  kable(digits = 4,
+        caption = "Study 29X") %>% 
+  kable_styling(font_size = 20)
+```
+
+## Figure 2. Alluvial Plots
+
+```{r}
+df_remox_flow <-
+  df_analysis_remox %>% 
+  mutate(weeks_rounded = ceiling(weeks)) %>% 
+  group_by(trial_no, weeks_rounded) %>% 
+  mutate(dtp_mean = mean(dtp_42, na.rm = TRUE),
+         dtp_min = min(dtp_42, na.rm = TRUE)) %>% # For individuals who have more than one observed TTP in a week
+  mutate(category = case_when(dtp_min <= 25 ~ "TTP \u2264 25",
+                              dtp_min > 25 & dtp_min <= 30 ~ "25 < TTP \u2264 30",
+                              dtp_min > 30 & dtp_min < 42 ~ "30 < TTP < 42",
+                              dtp_min >= 42 | is.na(dtp_min) ~ "TTP \u2265 42")) %>% 
+  mutate(category = factor(category, levels = c("TTP \u2265 42", "30 < TTP < 42", "25 < TTP \u2264 30", "TTP \u2264 25"))) %>% 
+  dplyr::select(trial_no, weeks_rounded, category) %>% 
+  distinct() #%>% arrange(trial_no, weeks_rounded) 
+
+df_mams_flow <-
+  df_analysis_mams %>% 
+  mutate(weeks_rounded = floor(weeks)) %>% 
+  group_by(patient.id, weeks_rounded) %>% 
+  mutate(dtp_mean = mean(dtp_42, na.rm = TRUE),
+         dtp_min = min(dtp_42, na.rm = TRUE)) %>% # For individuals who have more than one observed TTP in a week
+  mutate(category = case_when(dtp_min <= 25 ~ "TTP \u2264 25",
+                              dtp_min > 25 & dtp_min <= 30 ~ "25 < TTP \u2264 30",
+                              dtp_min > 30 & dtp_min < 42 ~ "30 < TTP < 42",
+                              dtp_min >= 42 | is.na(dtp_min) ~ "TTP \u2265 42")) %>% 
+  mutate(category = factor(category, levels = c("TTP \u2265 42", "30 < TTP < 42", "25 < TTP \u2264 30", "TTP \u2264 25"))) %>% 
+  dplyr::select(patient.id, weeks_rounded, category) %>% 
+  distinct() #%>% arrange(trial_no, weeks_rounded) 
+
+alluv_remox_2 <- ggplot(df_remox_flow, aes(x = weeks_rounded, stratum = category, alluvium = trial_no, fill = category)) + 
+  geom_flow() + 
+  scale_fill_manual(values = c("darkgray",ucsf_col_pal[c(2,9)],"lightgray")) +
+  scale_x_continuous(breaks = 0:8,
+                     labels = 0:8) + 
+  geom_stratum(col = "white") +
+  labs(x = "Weeks from randomization",
+       y = "No. samples",
+       title = "REMoxTB") + 
+  theme(legend.title = element_blank())
+
+alluv_mams_2 <- ggplot(df_mams_flow, aes(x = weeks_rounded, stratum = category, alluvium = patient.id, fill = category)) + 
+  geom_flow() + 
+  scale_fill_manual(values = c("darkgray",ucsf_col_pal[c(2,9)],"lightgray")) +
+  scale_x_continuous(breaks = 0:8,
+                     labels = 0:8) + 
+  geom_stratum(col = "white") +
+  labs(x = "Weeks from randomization",
+       y = "No. samples",
+       title = "MAMS-TB") + 
+  theme(legend.title = element_blank())
+
+df_nc002_flow <- df_analysis_nc002 %>% 
+  group_by(patient.id = USUBJID, weeks_rounded) %>% 
+  mutate(dtp_mean = mean(dtp_42, na.rm = TRUE),
+         dtp_min = min(dtp_42, na.rm = TRUE)) %>% # For individuals who have more than one observed TTP in a week
+  mutate(category = case_when(dtp_min <= 25 ~ "TTP \u2264 25",
+                              dtp_min > 25 & dtp_min <= 30 ~ "25 < TTP \u2264 30",
+                              dtp_min > 30 & dtp_min < 42 ~ "30 < TTP < 42",
+                              dtp_min >= 42 | is.na(dtp_min) ~ "TTP \u2265 42")) %>% 
+  mutate(category = factor(category, levels = c("TTP \u2265 42", "30 < TTP < 42", "25 < TTP \u2264 30", "TTP \u2264 25"))) %>% 
+  dplyr::select(patient.id, weeks_rounded, category) %>% 
+  distinct() 
+
+alluv_nc002 <- ggplot(df_nc002_flow, aes(x = weeks_rounded, stratum = category, alluvium = patient.id, fill = category)) + 
+  geom_flow() + 
+  scale_fill_manual(values = c("darkgray",ucsf_col_pal[c(2,9)],"lightgray")) +
+  scale_x_continuous(breaks = 0:8,
+                     labels = 0:8) + 
+  geom_stratum(col = "white") +
+  labs(x = "Weeks from randomization",
+       y = "No. samples",
+       title = "NC-002 (MPaZ)") + 
+  theme(legend.title = element_blank())
+
+df_nc005_flow <- df_analysis_nc005 %>% 
+  group_by(patient.id, weeks_rounded) %>% 
+  mutate(dtp_mean = mean(dtp_42, na.rm = TRUE),
+         dtp_min = min(dtp_42, na.rm = TRUE)) %>% # For individuals who have more than one observed TTP in a week
+  mutate(category = case_when(dtp_min <= 25 ~ "TTP \u2264 25",
+                              dtp_min > 25 & dtp_min <= 30 ~ "25 < TTP \u2264 30",
+                              dtp_min > 30 & dtp_min < 42 ~ "30 < TTP < 42",
+                              dtp_min >= 42 | is.na(dtp_min) ~ "TTP \u2265 42")) %>% 
+  mutate(category = factor(category, levels = c("TTP \u2265 42", "30 < TTP < 42", "25 < TTP \u2264 30", "TTP \u2264 25"))) %>% 
+  dplyr::select(patient.id, weeks_rounded, category) %>% 
+  distinct() #%>% arrange(trial_no, weeks_rounded) 
+
+alluv_nc005 <- ggplot(df_nc005_flow, aes(x = weeks_rounded, stratum = category, alluvium = patient.id, fill = category)) + 
+  geom_flow() + 
+  scale_fill_manual(values = c("darkgray",ucsf_col_pal[c(2,9)],"lightgray")) +
+  scale_x_continuous(breaks = 0:8,
+                     labels = 0:8) + 
+  geom_stratum(col = "white") +
+  labs(x = "Weeks from randomization",
+       y = "No. samples",
+       title = "NC-005 (MPaZB)") + 
+  theme(legend.title = element_blank())
+
+df_nc006_flow <- df_analysis_nc006 %>% 
+  group_by(patient.id, weeks_rounded) %>% 
+  mutate(dtp_mean = mean(dtp_42, na.rm = TRUE),
+         dtp_min = min(dtp_42, na.rm = TRUE)) %>% # For individuals who have more than one observed TTP in a week
+  mutate(category = case_when(dtp_min <= 25 ~ "TTP \u2264 25",
+                              dtp_min > 25 & dtp_min <= 30 ~ "25 < TTP \u2264 30",
+                              dtp_min > 30 & dtp_min < 42 ~ "30 < TTP < 42",
+                              dtp_min >= 42 | is.na(dtp_min) ~ "TTP \u2265 42")) %>% 
+  mutate(category = factor(category, levels = c("TTP \u2265 42", "30 < TTP < 42", "25 < TTP \u2264 30", "TTP \u2264 25"))) %>% 
+  dplyr::select(patient.id, weeks_rounded, category) %>% 
+  distinct() #%>% arrange(trial_no, weeks_rounded) 
+
+alluv_nc006 <- ggplot(df_nc006_flow, aes(x = weeks_rounded, stratum = category, alluvium = patient.id, fill = category)) + 
+  geom_flow() + 
+  scale_fill_manual(values = c("darkgray",ucsf_col_pal[c(2,9)],"lightgray")) +
+  scale_x_continuous(breaks = 0:8,
+                     labels = 0:8) + 
+  geom_stratum(col = "white") +
+  labs(x = "Weeks from randomization",
+       y = "No. samples",
+       title = "NC-006 (STAND)") + 
+  theme(legend.title = element_blank())
+
+df_st29_flow <- df_analysis_s29 %>% 
+  group_by(patient.id, weeks_rounded) %>% 
+  mutate(dtp_mean = mean(dtp_42, na.rm = TRUE),
+         dtp_min = min(dtp_42, na.rm = TRUE)) %>% #arrange(patient.id, weeks_rounded) %>% view()# For individuals who have more than one observed TTP in a week
+  mutate(category = case_when(dtp_mean <= 25 ~ "TTP \u2264 25",
+                              dtp_mean > 25 & dtp_mean <= 30 ~ "25 < TTP \u2264 30",
+                              dtp_mean > 30 & dtp_mean < 42 ~ "30 < TTP < 42",
+                              dtp_mean >= 42 | is.na(dtp_mean) ~ "TTP \u2265 42")) %>% 
+  mutate(category = factor(category, levels = c("TTP \u2265 42", "30 < TTP < 42", "25 < TTP \u2264 30", "TTP \u2264 25"))) %>% 
+  dplyr::select(patient.id, weeks_rounded, category) %>% 
+  distinct() #%>% arrange(trial_no, weeks_rounded) 
+
+alluv_st29 <- ggplot(filter(df_st29_flow, weeks_rounded %in% c(0,2,4,6,8)), aes(x = weeks_rounded, stratum = category, alluvium = patient.id, fill = category)) + 
+  geom_flow() + 
+  scale_fill_manual(values = c("darkgray",ucsf_col_pal[c(2,9)],"lightgray")) +
+  scale_x_continuous(breaks = seq(0,8,by=2),
+                     labels = seq(0,8,by=2)) + 
+  coord_cartesian(xlim = c(0,8)) + 
+  geom_stratum(col = "white") +
+  labs(x = "Weeks from randomization",
+       y = "No. samples",
+       title = "Study 29") + 
+  theme(legend.title = element_blank())
+
+df_st29x_flow <- df_analysis_s29x %>% 
+  group_by(patient.id, weeks_rounded) %>% 
+  mutate(dtp_mean = mean(dtp_42, na.rm = TRUE),
+         dtp_min = min(dtp_42, na.rm = TRUE)) %>% #arrange(patient.id, weeks_rounded) %>% view()# For individuals who have more than one observed TTP in a week
+  mutate(category = case_when(dtp_mean <= 25 ~ "TTP \u2264 25",
+                              dtp_mean > 25 & dtp_mean <= 30 ~ "25 < TTP \u2264 30",
+                              dtp_mean > 30 & dtp_mean < 42 ~ "30 < TTP < 42",
+                              dtp_mean >= 42 | is.na(dtp_mean) ~ "TTP \u2265 42")) %>% 
+  mutate(category = factor(category, levels = c("TTP \u2265 42", "30 < TTP < 42", "25 < TTP \u2264 30", "TTP \u2264 25"))) %>% 
+  dplyr::select(patient.id, weeks_rounded, category) %>% 
+  distinct() #%>% arrange(trial_no, weeks_rounded) 
+
+alluv_st29x <- ggplot(filter(df_st29x_flow, weeks_rounded %in% c(0,2,4,6,8)), aes(x = weeks_rounded, stratum = category, alluvium = patient.id, fill = category)) + 
+  geom_flow() + 
+  scale_fill_manual(values = c("darkgray",ucsf_col_pal[c(2,9)],"lightgray")) +
+  scale_x_continuous(breaks = seq(0,8,by=2),
+                     labels = seq(0,8,by=2)) + 
+  coord_cartesian(xlim = c(0,8)) + 
+  geom_stratum(col = "white") +
+  labs(x = "Weeks from randomization",
+       y = "No. samples",
+       title = "Study 29X") + 
+  theme(legend.title = element_blank())
+```
+
+```{r}
+(alluv_remox_2 + alluv_mams_2) / (alluv_nc002 + alluv_nc005) / (alluv_nc006 + alluv_st29 + alluv_st29x) + 
+  plot_annotation(tag_levels = "A") + 
+  plot_layout(guides = "collect") &
+  theme(legend.position = "right")
+
+ggsave(file = here("graphs", "descriptive", "02_alluvial-combined-extended.tiff"),
+       device = "tiff",
+       height = 9,
+       width = 15,
+       units = "in",
+       dpi = 300)
+```
+
+## Figure 3. Signal-to-Noise
+
+```{r}
+load(here("data", "cleaned-data", "2024-03-26_replicate-datasets.RData"))
+list2env(df_replicates, environment())
+```
+
+```{r}
+#| fig-width: 10
+#| fig-height: 10
+p1_reps <- df_NC_002_replicates %>% 
+  filter(rep1 <= 42 & rep2 <= 42) %>% # removing the oddly coded rep = 60
+  ggplot(aes(x = rep1, y = rep2, col = (rep1 >= 42 | rep2 >= 42))) +  
+  geom_abline(slope = 1, intercept = 0, lty = 1, col = "red") +
+  geom_point(alpha = 0.2) + 
+  scale_color_manual("Above diagnostic LOD = 42", values = c("black", "orange")) + 
+  scale_x_log10(TeX("TTP$_1$, log$_{10}$ scale"),
+                breaks = c(1,3,10,25,30,42)) + 
+  scale_y_log10(TeX("TTP$_2$, log$_{10}$ scale"),
+                breaks = c(1,3,10,25,30,42)) + 
+  coord_fixed(xlim = c(1,42),
+              ylim = c(1,42)) + 
+  labs(title = "Study: NC-002 (M-Pa-Z)") +  
+  theme(legend.position = "bottom")
+```
+
+```{r}
+kfold_function <- function(df, k){
+  df$k_assignment <- sample(1:k, size = nrow(df), replace = TRUE)
+  
+  map_dfr(as.list(1:k), 
+          ~t_function(df, 
+                      kspec = .x))
+}
+
+t_function <- function(df, kspec){
+  train <- df %>% 
+    filter(k_assignment != kspec)
+  test <- df %>% 
+    filter(k_assignment == kspec)
+  
+  mtemp <- train %>% 
+    # Predict rep2 as a function of rep1
+    lm(log10(rep2) ~ log10(rep1), 
+       data = .)
+  
+  test$rep2.hat <- predict(mtemp, newdata = test)
+  return(test)
+}
+
+prediction_nc <- kfold_function(filter(ungroup(df_NC_002_replicates), rep1 < 42), k = 5)
+
+p2 <- prediction_nc %>% 
+  filter(rep2 <= 42 & rep1 <= 42) %>% 
+  ungroup() %>% 
+  mutate(pred.error = 100*(abs(log10(rep2) - rep2.hat)/log10(rep2))) %>% 
+  arrange(rep1) %>% arrange(rep1) %>% 
+  group_by(cats_rep1 = cut(rep1, 
+                           breaks = quantile(rep1, probs = seq(0,1,by=0.1)),
+                           include.lowest = TRUE)) %>% 
+  mutate(mean_cat_error_10 = mean(pred.error)) %>% 
+  mutate(over.lim.pred.error = ifelse(pred.error > 100, 100, pred.error),
+         over.lim.detect = ifelse(pred.error >100, TRUE, FALSE)) %>% 
+  group_by(cats_rep1 = cut(rep1, breaks = quantile(rep1, probs = seq(0,1,by=0.05)))) %>% 
+  mutate(mean_cat_error_20 = mean(pred.error)) %>% 
+  ggplot(aes(x = rep1, y = over.lim.pred.error)) + 
+  geom_point(aes(alpha = over.lim.detect,
+                 shape = over.lim.detect,
+                 col = over.lim.detect))+
+  geom_smooth(aes(y = pred.error),
+              se = FALSE,
+              lwd = 1,
+              lty = 2,
+              col = "black") +
+  geom_line(aes(y = mean_cat_error_10),
+            col = "black",#ucsf_col_pal[3],
+            lwd = 1) +
+  coord_cartesian(xlim = c(1,42),ylim = c(0,40)) +
+  scale_alpha_manual(values = c(0.2,1)) +
+  scale_x_log10(breaks = c(1,3, 10, 25, 30, 42)) +
+  scale_y_continuous(breaks = c(seq(0,100,by = 10), 150,200),
+                     expand = c(0,0.75)) +
+  scale_color_manual(values = c("darkgray", ucsf_col_pal[c(7)])) +
+  theme(legend.position = "none") + 
+  labs(x = TeX("TTP$_1$, log$_{10}$ scale"),
+       y = TeX("Absolute Prediction Error (%): $100\\times \\frac{| log_{10}TTP_2 - log_{10}\\widehat{TTP}_2 |}{log_{10}TTP_2}"),
+       title = "Study: NC-002 (M-Pa-Z)") 
+```
+
+```{r}
+(p1_reps + theme(legend.position = "none",plot.title = element_blank())) + 
+  (p2 + theme(plot.title = element_blank())) +
+  plot_layout(widths = c(1,1.65),
+              height = 1) + 
+  plot_annotation(tag_levels = "A")
+```
+
+```{r}
+#| eval: false
+ggsave(here("graphs", "publication", "NC-002_replicates_point-AND-prediction.png"),
+       device = "png",
+       width = 14,
+       height = 5.5,
+       units = "in")
+```
+
+Overall correlation within replicates: `r round(cor(df_NC_002_replicates$rep1,df_NC_002_replicates$rep2), 4)`
+
+## Figure 4. Posterior distributions for relative comparisons
+
+```{r}
+load(here("data", "model-generated", "2023-07-20_linear-mams-lod-42.RData"))
+load(here("data", "model-generated", "2023-07-20_linear-mams-lod-30.RData"))
+load(here("data", "model-generated", "2023-08-15_linear-mams-lod-25.RData"))
+load(here("data", "model-generated", "2023-07-20_linear-remox-lod-42.RData"))
+load(here("data", "model-generated", "2023-07-31_linear-remox-lod-30.RData"))
+load(here("data", "model-generated", "2023-09-01_linear-remox-lod-25.RData"))
+load(here("data", "model-generated", "2024-03-27_linear-nc002-lod-42.RData"))
+load(here("data", "model-generated", "2024-03-27_linear-nc002-lod-30.RData"))
+load(here("data", "model-generated", "2024-03-27_linear-nc002-lod-25.RData"))
+load(here("data", "model-generated", "2024-03-27_linear-nc005-lod-42.RData"))
+load(here("data", "model-generated", "2024-03-27_linear-nc005-lod-30.RData"))
+load(here("data", "model-generated", "2024-03-27_linear-nc005-lod-25.RData"))
+load(here("data", "model-generated", "2024-04-15_linear-nc006-lod-42.RData"))
+load(here("data", "model-generated", "2024-04-15_linear-nc006-lod-30.RData"))
+load(here("data", "model-generated", "2024-04-15_linear-nc006-lod-25.RData"))
+load(here("data", "model-generated", "2024-03-27_linear-s29-lod-42.RData"))
+load(here("data", "model-generated", "2024-03-27_linear-s29-lod-30.RData"))
+load(here("data", "model-generated", "2024-03-27_linear-s29-lod-25.RData"))
+load(here("data", "model-generated", "2024-03-27_linear-s29x-lod-42.RData"))
+load(here("data", "model-generated", "2024-03-27_linear-s29x-lod-30.RData"))
+load(here("data", "model-generated", "2024-03-27_linear-s29x-lod-25.RData"))
+```
+
+```{r}
+## NC-002
+df_post_nc002_25 <- coef(m_linear_nc002_25, summary = F)$ACTARM %>% 
+  as_tibble()  %>% 
+  mutate(credible_est_no = row_number()) %>% 
+  pivot_longer(cols = `MOXIFLOXACIN + PA-824 (100 MG) + PYRAZINAMIDE (DS).Intercept`:`RIFAFOUR E-275 (DS).weeks`,
+               names_to = "regimen",
+               values_to = "coef") %>% 
+  filter(str_detect(regimen, "weeks")) %>%
+  group_by(credible_est_no) %>% 
+  mutate(rel_slope = coef/coef[regimen=="RIFAFOUR E-275 (DS).weeks"],
+         diff_slope = coef-coef[regimen=="RIFAFOUR E-275 (DS).weeks"]) %>% 
+  mutate(ULOQ = 25) %>% 
+  # Simplifying treatment names to match manuscript
+  mutate(treat_simple = case_when(str_detect(regimen, "RIFAFOUR") ~ "HRZE",
+                                  str_detect(regimen, "100 MG") ~ "MPa(100)Z",
+                                  TRUE ~ "MPa(200)Z")) %>% 
+  mutate(treat_simple = factor(treat_simple, levels = c("HRZE", "MPa(100)Z", "MPa(200)Z")))
+
+df_post_nc002_30 <- coef(m_linear_nc002_30, summary = F)$ACTARM %>% 
+  as_tibble()  %>% 
+  mutate(credible_est_no = row_number()) %>% 
+  pivot_longer(cols = `MOXIFLOXACIN + PA-824 (100 MG) + PYRAZINAMIDE (DS).Intercept`:`RIFAFOUR E-275 (DS).weeks`,
+               names_to = "regimen",
+               values_to = "coef") %>% 
+  filter(str_detect(regimen, "weeks")) %>%
+  group_by(credible_est_no) %>% 
+  mutate(rel_slope = coef/coef[regimen=="RIFAFOUR E-275 (DS).weeks"],
+         diff_slope = coef-coef[regimen=="RIFAFOUR E-275 (DS).weeks"]) %>% 
+  mutate(ULOQ = 30) %>% 
+  # Simplifying treatment names to match manuscript
+  mutate(treat_simple = case_when(str_detect(regimen, "RIFAFOUR") ~ "HRZE",
+                                  str_detect(regimen, "100 MG") ~ "MPa(100)Z",
+                                  TRUE ~ "MPa(200)Z")) %>% 
+  mutate(treat_simple = factor(treat_simple, levels = c("HRZE", "MPa(100)Z", "MPa(200)Z")))
+
+df_post_nc002_42 <- coef(m_linear_nc002_42, summary = F)$ACTARM %>% 
+  as_tibble()  %>% 
+  mutate(credible_est_no = row_number()) %>% 
+  pivot_longer(cols = `MOXIFLOXACIN + PA-824 (100 MG) + PYRAZINAMIDE (DS).Intercept`:`RIFAFOUR E-275 (DS).weeks`,
+               names_to = "regimen",
+               values_to = "coef") %>% 
+  filter(str_detect(regimen, "weeks")) %>%
+  group_by(credible_est_no) %>% 
+  mutate(rel_slope = coef/coef[regimen=="RIFAFOUR E-275 (DS).weeks"],
+         diff_slope = coef-coef[regimen=="RIFAFOUR E-275 (DS).weeks"]) %>% 
+  mutate(ULOQ = 42) %>% 
+  # Simplifying treatment names to match manuscript
+  mutate(treat_simple = case_when(str_detect(regimen, "RIFAFOUR") ~ "HRZE",
+                                  str_detect(regimen, "100 MG") ~ "MPa(100)Z",
+                                  TRUE ~ "MPa(200)Z")) %>% 
+  mutate(treat_simple = factor(treat_simple, levels = c("HRZE", "MPa(100)Z", "MPa(200)Z")))
+
+p1 <- bind_rows(df_post_nc002_25,
+                df_post_nc002_30,
+                df_post_nc002_42) %>% 
+  filter(treat_simple != "HRZE") %>%
+  ggplot(aes(x=rel_slope, fill = as.factor(ULOQ), col = as.factor(ULOQ), lty = as.factor(ULOQ))) +
+  ggridges::geom_density_ridges(aes(y = as.factor(ULOQ)),
+                                alpha = 0.3, 
+                                # col = "white",
+                                scale = 1) + 
+  facet_wrap(~treat_simple) +
+  scale_fill_grey() + 
+  scale_color_grey() +
+  geom_vline(xintercept = 1,
+             lty = 2) + 
+  scale_y_discrete(expand=c(0.05,0)) +
+  theme(legend.title = element_blank(),
+        legend.position = "none") + #c(0.8,0.9)) + 
+  labs(x = TeX("$\\gamma_{1j} / \\gamma_{1, HRZE}$"), #"The posterior distributions of the difference in regimen-level slop estimates when comparing each regimen against the HRZE control. No difference is denoted by 0."
+       y = TeX("ULOQ$_M$")) + 
+  coord_cartesian(xlim = c(0.75,1.75))
+
+
+## NC-005
+df_post_nc005_25 <- coef(m_linear_nc005_25, summary = F)$ACTARM %>% 
+  as_tibble()  %>% 
+  # Just the promising regimen
+  dplyr::select(`DS: J(200)PaZ.weeks`, `DS: HRZE.weeks`) %>% 
+  mutate(credible_est_no = row_number()) %>% 
+  pivot_longer(cols = `DS: J(200)PaZ.weeks`:`DS: HRZE.weeks`,
+               names_to = "regimen",
+               values_to = "coef") %>% 
+  group_by(credible_est_no) %>% 
+  mutate(rel_slope = coef/coef[regimen=="DS: HRZE.weeks"],
+         diff_slope = coef-coef[regimen=="DS: HRZE.weeks"]) %>% 
+  mutate(ULOQ = 25) %>% 
+  # Simplifying treatment names to match manuscript
+  mutate(treat_simple = str_remove(regimen, "DS: ")) %>% 
+  mutate(treat_simple = str_remove(treat_simple, ".weeks")) %>%
+  mutate(treat_simple = str_replace(treat_simple, "J", "B")) %>%
+  mutate(treat_simple = factor(treat_simple, levels = c("HRZE", "B(200)PaZ")))
+
+df_post_nc005_30 <- coef(m_linear_nc005_30, summary = F)$ACTARM %>% 
+  as_tibble()  %>% 
+  # Just the promising regimen
+  dplyr::select(`DS: J(200)PaZ.weeks`, `DS: HRZE.weeks`) %>% 
+  mutate(credible_est_no = row_number()) %>% 
+  pivot_longer(cols = `DS: J(200)PaZ.weeks`:`DS: HRZE.weeks`,
+               names_to = "regimen",
+               values_to = "coef") %>% 
+  group_by(credible_est_no) %>% 
+  mutate(rel_slope = coef/coef[regimen=="DS: HRZE.weeks"],
+         diff_slope = coef-coef[regimen=="DS: HRZE.weeks"]) %>% 
+  mutate(ULOQ = 30) %>% 
+  # Simplifying treatment names to match manuscript
+  mutate(treat_simple = str_remove(regimen, "DS: ")) %>% 
+  mutate(treat_simple = str_remove(treat_simple, ".weeks")) %>%
+  mutate(treat_simple = str_replace(treat_simple, "J", "B")) %>%
+  mutate(treat_simple = factor(treat_simple, levels = c("HRZE", "B(200)PaZ")))
+
+df_post_nc005_42 <- coef(m_linear_nc005_42, summary = F)$ACTARM %>% 
+  as_tibble()  %>% 
+  # Just the promising regimen
+  dplyr::select(`DS: J(200)PaZ.weeks`, `DS: HRZE.weeks`) %>% 
+  mutate(credible_est_no = row_number()) %>% 
+  pivot_longer(cols = `DS: J(200)PaZ.weeks`:`DS: HRZE.weeks`,
+               names_to = "regimen",
+               values_to = "coef") %>% 
+  group_by(credible_est_no) %>% 
+  mutate(rel_slope = coef/coef[regimen=="DS: HRZE.weeks"],
+         diff_slope = coef-coef[regimen=="DS: HRZE.weeks"]) %>% 
+  mutate(ULOQ = 42) %>% 
+  # Simplifying treatment names to match manuscript
+  mutate(treat_simple = str_remove(regimen, "DS: ")) %>% 
+  mutate(treat_simple = str_remove(treat_simple, ".weeks")) %>%
+  mutate(treat_simple = str_replace(treat_simple, "J", "B")) %>%
+  mutate(treat_simple = factor(treat_simple, levels = c("HRZE", "B(200)PaZ")))
+
+p2 <- bind_rows(df_post_nc005_25,
+                df_post_nc005_30,
+                df_post_nc005_42) %>% 
+  filter(treat_simple != "HRZE") %>%
+  ggplot(aes(x=rel_slope, fill = as.factor(ULOQ), col = as.factor(ULOQ), lty = as.factor(ULOQ))) +
+  ggridges::geom_density_ridges(aes(y = as.factor(ULOQ)),
+                                alpha = 0.3, 
+                                # col = "white",
+                                scale = 1) + 
+  facet_wrap(~treat_simple) +
+  scale_fill_grey() + 
+  scale_color_grey() +
+  geom_vline(xintercept = 1,
+             lty = 2) + 
+  scale_y_discrete(expand=c(0.05,0)) +
+  theme(legend.title = element_blank(),
+        legend.position = "none") + #c(0.8,0.9)) + 
+  labs(x = TeX("$\\gamma_{1j} / \\gamma_{1, HRZE}$"), #"The posterior distributions of the difference in regimen-level slop estimates when comparing each regimen against the HRZE control. No difference is denoted by 0."
+       y = TeX("ULOQ$_M$")) + 
+  coord_cartesian(xlim = c(0.75,1.75))
+
+## MAMS-TB
+df_post_mams_25 <- coef(m_linear_mams_25, summary = F)$Treatm_arm %>% 
+  as_tibble()  %>% 
+  # Just the promising regimen
+  dplyr::select(`HR35ZE.weeks`, `HRZE.weeks`) %>% 
+  mutate(credible_est_no = row_number()) %>% 
+  pivot_longer(cols = 1:2,
+               names_to = "regimen",
+               values_to = "coef") %>% 
+  group_by(credible_est_no) %>% 
+  mutate(rel_slope = coef/coef[regimen=="HRZE.weeks"],
+         diff_slope = coef-coef[regimen=="HRZE.weeks"]) %>% 
+  mutate(ULOQ = 25) %>% 
+  # Simplifying treatment names to match manuscript
+  mutate(treat_simple = str_remove(regimen, ".weeks")) 
+
+df_post_mams_30 <- coef(m_linear_mams_30, summary = F)$Treatm_arm %>% 
+  as_tibble()  %>% 
+  # Just the promising regimen
+  dplyr::select(`HR35ZE.weeks`, `HRZE.weeks`) %>% 
+  mutate(credible_est_no = row_number()) %>% 
+  pivot_longer(cols = 1:2,
+               names_to = "regimen",
+               values_to = "coef") %>% 
+  group_by(credible_est_no) %>% 
+  mutate(rel_slope = coef/coef[regimen=="HRZE.weeks"],
+         diff_slope = coef-coef[regimen=="HRZE.weeks"]) %>% 
+  mutate(ULOQ = 30) %>% 
+  # Simplifying treatment names to match manuscript
+  mutate(treat_simple = str_remove(regimen, ".weeks")) 
+
+df_post_mams_42 <- coef(m_linear_mams_42, summary = F)$Treatm_arm %>% 
+  as_tibble()  %>% 
+  # Just the promising regimen
+  dplyr::select(`HR35ZE.weeks`, `HRZE.weeks`) %>% 
+  mutate(credible_est_no = row_number()) %>% 
+  pivot_longer(cols = 1:2,
+               names_to = "regimen",
+               values_to = "coef") %>% 
+  group_by(credible_est_no) %>% 
+  mutate(rel_slope = coef/coef[regimen=="HRZE.weeks"],
+         diff_slope = coef-coef[regimen=="HRZE.weeks"]) %>% 
+  mutate(ULOQ = 42) %>% 
+  # Simplifying treatment names to match manuscript
+  mutate(treat_simple = str_remove(regimen, ".weeks")) 
+```
+
+```{r}
+posterior_density_function <- function(df, plot_title){
+  stats <- df %>% 
+    group_by(ULOQ, treat_simple) %>% 
+    summarise(med = median(rel_slope),
+              g1 = mean(rel_slope > 1),
+              g1.1 = mean(rel_slope > 1.1))
+  
+  p_obj <- df %>% ggplot(aes(x=rel_slope,y = as.factor(ULOQ))) +
+    ggdist::stat_slab(aes(fill = after_stat(x > 1)),
+                      alpha = 0.5) +
+    ggdist::stat_slab(aes(fill = after_stat(x > 1.1)),
+                      alpha = 0.5) +
+    scale_color_grey() +
+    scale_fill_manual(values = c("gray85", "skyblue")) + 
+    geom_text(aes(x = 1, y = as.factor(ULOQ), label = format(round(g1,3), nsmall = 3)),
+              data = stats,
+              hjust = 0,
+              vjust = -1.15) +
+    geom_text(aes(x = 1.1, y = as.factor(ULOQ), label = format(round(g1.1,3), nsmall = 3)),
+              data = stats,
+              hjust = 0,
+              vjust = -2.15) +
+    # Arrow for ULOQ = 25
+    geom_segment(aes(x = 1, xend = 1.5, y = 1.05, yend = 1.05),
+                 arrow = arrow(length = unit(0.05,"inches"))) +
+    geom_segment(aes(x = 1.1, xend = 1.5, y = 1.15, yend = 1.15),
+                 arrow = arrow(length = unit(0.05,"inches"))) +
+    # Arrow for ULOQ = 30
+    geom_segment(aes(x = 1, xend = 1.5, y = 2.05, yend = 2.05),
+                 arrow = arrow(length = unit(0.05,"inches"))) +
+    geom_segment(aes(x = 1.1, xend = 1.5, y = 2.15, yend = 2.15),
+                 arrow = arrow(length = unit(0.05,"inches"))) +
+    # Arrow for ULOQ = 42
+    geom_segment(aes(x = 1, xend = 1.5, y = 3.05, yend = 3.05),
+                 arrow = arrow(length = unit(0.05,"inches"))) +
+    geom_segment(aes(x = 1.1, xend = 1.5, y = 3.15, yend = 3.15),
+                 arrow = arrow(length = unit(0.05,"inches"))) +
+    labs(x = TeX("$\\gamma_{1j} / \\gamma_{1, HRZE}$"), #"The posterior distributions of the difference in regimen-level slop estimates when comparing each regimen against the HRZE control. No difference is denoted by 0."
+         y = TeX("Posterior distribution by ULOQ$_M$"),
+         title = plot_title) + #"MAMS-TB: R(35)HZE") +
+    theme(legend.position = "none",
+          axis.line.y = element_blank()) + 
+    scale_y_discrete(expand = c(0.05,0)) + 
+    scale_x_continuous(breaks = seq(0,2,by = 0.1)) + 
+    coord_cartesian(xlim = c(0.8,1.6))
+  
+  return(p_obj)
+}
+```
+
+```{r}
+t1 <- bind_rows(df_post_mams_25,
+                df_post_mams_30,
+                df_post_mams_42) %>% 
+  filter(treat_simple != "HRZE")
+
+t2_a <- bind_rows(df_post_nc002_25,
+                df_post_nc002_30,
+                df_post_nc002_42) %>% 
+  filter(treat_simple != "HRZE",
+         treat_simple != "MPa(200)Z") 
+
+t2_b <- bind_rows(df_post_nc002_25,
+                  df_post_nc002_30,
+                  df_post_nc002_42) %>% 
+  filter(treat_simple != "HRZE",
+         treat_simple != "MPa(100)Z") 
+
+t3 <- bind_rows(df_post_nc005_25,
+                df_post_nc005_30,
+                df_post_nc005_42) %>% 
+  filter(treat_simple != "HRZE")
+
+p1 <- posterior_density_function(df = t1, 
+                                 plot_title = "MAMS-TB: R(35)HZE")
+p2a <- posterior_density_function(df = t2_a, 
+                                  plot_title = "NC-002: Pa(100)MZ")
+p2b <- posterior_density_function(df = t2_b, 
+                                  plot_title = "NC-002: Pa(200)MZ")
+p3 <- posterior_density_function(df = t3, 
+                                  plot_title = "NC-005: B(200)PaZ")
+
+
+aa <- (p1 + p2a) 
+bb <- (p2b + p3)
+aa / bb
+```
+
+```{r}
+#| eval: false
+ggsave(here("graphs", "publication", "posterior-densities_promising-regimens.tiff"),
+       device = "tiff",
+       height = 8,
+       width = 12,
+       units = "in")
+
+ggsave(here("graphs", "publication", "posterior-densities_promising-regimens.png"),
+       device = "png",
+       height = 8,
+       width = 12,
+       units = "in")
+```
+
+## Model Results
+
+```{r}
+coef_remox_25 <-
+    coef(m_linear_remox_25, summary = F)$treat %>% 
+    as_tibble()
+
+t25 <- coef_remox_25 %>% 
+  gather() %>% 
+  group_by(key) %>% 
+  mode_hdi(value) %>% 
+  mutate_if(is.double, round, digits = 3) %>% 
+  mutate(LOQ = 25)
+
+coef_remox_30 <-
+    coef(m_linear_remox_30, summary = F)$treat %>% 
+    as_tibble()
+
+t30 <- coef_remox_30 %>% 
+  gather() %>% 
+  group_by(key) %>% 
+  mode_hdi(value) %>% 
+  mutate_if(is.double, round, digits = 3) %>% 
+  mutate(LOQ = 30)
+
+coef_remox_42 <-
+    coef(m_linear_remox_42, summary = F)$treat %>% 
+    as_tibble()
+
+coefs_remox <- coef_remox_42 %>% 
+  gather() %>% 
+  group_by(key) %>% 
+  mode_hdi(value) %>% 
+  mutate_if(is.double, round, digits = 3) %>% 
+  mutate(LOQ = 42) %>% 
+  bind_rows(t30) %>% 
+  bind_rows(t25) %>% 
+  filter(str_detect(key, "weeks")) 
+
+coefs_remox %>% 
+  transmute(key, value, .lower, .upper, `CI width` = abs(.upper - .lower), .point, .interval) %>% 
+  rename(" " = key, "Estimate" = value, "CI.l" = .lower, "CI.u" = .upper, #"CI width" = .width, 
+         "Point Estimation" = .point, "CI Estimation" = .interval) %>% 
+  kable(digits = 3,
+        caption = "(REMoxTB) Posterior group-level estimates of slope from the 30- and 42-day models.") %>% 
+  kable_styling(font_size = 16) %>% 
+  pack_rows(group_label = "LOQ = 42", 
+             start_row = 1,
+             end_row = 3) %>% 
+  pack_rows(group_label = "LOQ = 30",
+             start_row = 4,
+             end_row = 6) %>% 
+  pack_rows(group_label = "LOQ = 25",
+             start_row = 7,
+             end_row = 9)
+```
 
