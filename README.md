@@ -26,7 +26,7 @@ lower than the diagnostic limit of detection (LOD) using data from several TB-PA
         + **inputs:** `data/cleaned-data/[DATE]_[STUDY]-clean.RData`
         + **outputs:** `data/model-generated/[DATE]_linear-[STUDY]-lod-[ULOQ_M]_sensitivity.RData`
 + `sandbox` - contains work in progress
-+ `data` - contains the simulated datasets and analysis objects from the simulation study
++ `data` - not included in this repository, but data can be accessed as described in the manuscript
 
 ## Funding Information
 SMD - NIH/NIAID P30: TB Research Advancement Center (UC TRAC), P30AI168440 
