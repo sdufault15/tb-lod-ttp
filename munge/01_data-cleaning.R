@@ -10,7 +10,7 @@
 # REMoxTB
 #########################
 dta_patient <- read_dta(here("data", "cl_patientdata4sunita.dta"))
-dta_culture <- read_dta(here("data","cl_culturedata4sunita.dta"))
+dta_culture <- read_dta(here("data", "cl_culturedata4sunita.dta"))
 
 dta_full_remox <- full_join(dta_patient,
                             dta_culture)
