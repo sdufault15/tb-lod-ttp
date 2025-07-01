@@ -27,7 +27,6 @@ vignettes/*.pdf
 *.knit.md
 # R Environment Variables
 .Renviron
-# pkgdown site
 docs/
 # translation temp files
 po/*~
@@ -40,3 +39,4 @@ data
 graphs
 tb-lod-ttp.Rproj
 biphasic-param_00
+sandbox
